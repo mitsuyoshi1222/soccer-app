@@ -9,56 +9,66 @@ const ATT_BG    = { "出席":"#f0fdf4","欠席":"#fef2f2","検討中":"#fffbeb",
 const ATT_ICON  = { "出席":"✅","欠席":"❌","検討中":"🤔","療養中":"🤒","未回答":"⬜" };
 
 const FORMATIONS = {
-  "4-3-3":  { label:"4-3-3",       gk:1,df:4,mf:3,fw:3,min:11 },
-  "4-4-2":  { label:"4-4-2",       gk:1,df:4,mf:4,fw:2,min:11 },
-  "4-5-1":  { label:"4-5-1",       gk:1,df:4,mf:5,fw:1,min:11 },
-  "4-2-3-1":{ label:"4-2-3-1",     gk:1,df:4,mf:5,fw:1,min:11 },
-  "3-5-2":  { label:"3-5-2",       gk:1,df:3,mf:5,fw:2,min:11 },
-  "3-4-3":  { label:"3-4-3",       gk:1,df:3,mf:4,fw:3,min:11 },
-  "5-3-2":  { label:"5-3-2",       gk:1,df:5,mf:3,fw:2,min:11 },
-  "3-3-1":  { label:"3-3-1 (8人)", gk:1,df:3,mf:3,fw:1,min:8  },
-  "2-3-2":  { label:"2-3-2 (8人)", gk:1,df:2,mf:3,fw:2,min:8  },
-  "3-2-2":  { label:"3-2-2 (8人)", gk:1,df:3,mf:2,fw:2,min:8  },
+  // 11人制
+  "4-3-3":  { label:"4-3-3",   gk:1,df:4,mf:3,fw:3,min:11 },
+  "4-4-2":  { label:"4-4-2",   gk:1,df:4,mf:4,fw:2,min:11 },
+  "4-5-1":  { label:"4-5-1",   gk:1,df:4,mf:5,fw:1,min:11 },
+  "4-2-3-1":{ label:"4-2-3-1", gk:1,df:4,mf:5,fw:1,min:11 },
+  "3-5-2":  { label:"3-5-2",   gk:1,df:3,mf:5,fw:2,min:11 },
+  "3-4-3":  { label:"3-4-3",   gk:1,df:3,mf:4,fw:3,min:11 },
+  "5-3-2":  { label:"5-3-2",   gk:1,df:5,mf:3,fw:2,min:11 },
+  // 10人制
+  "4-3-2":  { label:"4-3-2",   gk:1,df:4,mf:3,fw:2,min:10 },
+  "3-4-2":  { label:"3-4-2",   gk:1,df:3,mf:4,fw:2,min:10 },
+  "3-3-3":  { label:"3-3-3",   gk:1,df:3,mf:3,fw:3,min:10 },
+  // 9人制
+  "3-3-2":  { label:"3-3-2",   gk:1,df:3,mf:3,fw:2,min:9 },
+  "3-2-3":  { label:"3-2-3",   gk:1,df:3,mf:2,fw:3,min:9 },
+  "2-4-2":  { label:"2-4-2",   gk:1,df:2,mf:4,fw:2,min:9 },
+  // 8人制
+  "3-3-1":  { label:"3-3-1",   gk:1,df:3,mf:3,fw:1,min:8 },
+  "2-3-2":  { label:"2-3-2",   gk:1,df:2,mf:3,fw:2,min:8 },
+  "3-2-2":  { label:"3-2-2",   gk:1,df:3,mf:2,fw:2,min:8 },
 };
 
 const initialMembers = [
-  { id:1,  name:"今野",       number:1,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:2,  name:"裕作",       number:2,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:3,  name:"工藤チャゲ", number:3,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:4,  name:"しん",       number:4,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:5,  name:"鈴木",       number:5,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:6,  name:"福本",       number:6,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:7,  name:"とも",       number:7,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:8,  name:"ちいかわ",   number:8,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:9,  name:"りょう",     number:9,  pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:10, name:"マコ",       number:10, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:11, name:"タカ",       number:11, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:12, name:"南",         number:12, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:13, name:"舛田",       number:13, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:14, name:"浅葉",       number:14, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:15, name:"田代",       number:15, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:16, name:"しょう",     number:16, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:17, name:"沢海",       number:17, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:18, name:"武井",       number:18, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:19, name:"松ちゃん",   number:19, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:20, name:"たつや",     number:20, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:21, name:"Yusuke Mori",number:21, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:22, name:"柿澤",       number:22, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:23, name:"カズ",       number:23, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:24, name:"ナラタカ",   number:24, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:25, name:"椎葉",       number:25, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:26, name:"金指",       number:26, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:27, name:"山崎りんた", number:27, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:28, name:"香川",       number:28, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:29, name:"森部",       number:29, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:30, name:"榊原",       number:32, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:31, name:"ヒロ",       number:33, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:32, name:"井上",       number:37, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:33, name:"たくま",     number:38, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:34, name:"サク",       number:39, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:35, name:"藤本",       number:43, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:36, name:"国",         number:92, pos1:"", pos2:"", pos3:"", side:"センター" },
-  { id:37, name:"やぎ",       number:89, pos1:"", pos2:"", pos3:"", side:"センター" },
+  { id:1,  name:"今野",       number:1,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:2,  name:"裕作",       number:2,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:3,  name:"工藤チャゲ", number:3,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:4,  name:"しん",       number:4,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:5,  name:"鈴木",       number:5,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:6,  name:"福本",       number:6,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:7,  name:"とも",       number:7,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:8,  name:"ちいかわ",   number:8,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:9,  name:"りょう",     number:9,  pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:10, name:"マコ",       number:10, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:11, name:"タカ",       number:11, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:12, name:"南",         number:12, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:13, name:"舛田",       number:13, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:14, name:"浅葉",       number:14, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:15, name:"田代",       number:15, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:16, name:"しょう",     number:16, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:17, name:"沢海",       number:17, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:18, name:"武井",       number:18, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:19, name:"松ちゃん",   number:19, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:20, name:"たつや",     number:20, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:21, name:"Yusuke Mori",number:21, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:22, name:"柿澤",       number:22, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:23, name:"カズ",       number:23, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:24, name:"ナラタカ",   number:24, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:25, name:"椎葉",       number:25, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:26, name:"金指",       number:26, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:27, name:"山崎りんた", number:27, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:28, name:"香川",       number:28, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:29, name:"森部",       number:29, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:30, name:"榊原",       number:32, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:31, name:"ヒロ",       number:33, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:32, name:"井上",       number:37, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:33, name:"たくま",     number:38, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:34, name:"サク",       number:39, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:35, name:"藤本",       number:43, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:36, name:"国",         number:92, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
+  { id:37, name:"やぎ",       number:89, pos1:"", pos2:"", pos3:"", side1:"", side2:"", side3:"" },
 ];
 
 const initialEvents = [
@@ -83,28 +93,71 @@ const initialAnnouncements = [
 // 初期管理者リスト（名前で管理）
 const initialAdmins = ["管理者①", "管理者②", "管理者③"];
 
-function assignFormation(players, fKey, forceAll) {
+function slotSides(n) {
+  if(n<=1) return ["セ"];
+  if(n===2) return ["セ","セ"];
+  if(n===3) return ["左","セ","右"];
+  if(n===4) return ["左","セ","セ","右"];
+  return ["左",...Array(n-2).fill("セ"),"右"];
+}
+function roleLabel(pos, side) {
+  if(pos==="GK") return "GK";
+  if(pos==="DF") return side==="左"?"左SB":side==="右"?"右SB":"CB";
+  if(pos==="MF") return side==="左"?"左SMF":side==="右"?"右SMF":"CMF";
+  return side==="左"?"左FW":side==="右"?"右FW":"CF";
+}
+function sideMatches(playerSide, slotSide) {
+  const s = playerSide||"";
+  if(slotSide==="左") return s.includes("左");
+  if(slotSide==="右") return s.includes("右");
+  // センター枠: センター適性・未設定・なしの人
+  return s.includes("センター")||s===""||s.includes("なし");
+}
+
+function assignFormation(players, fKey) {
   const f = FORMATIONS[fKey];
-  if (!f) return { GK:[],DF:[],MF:[],FW:[],SUB:[] };
-  const result = { GK:[],DF:[],MF:[],FW:[],SUB:[] };
-  const used = new Set();
-  const pick = (pos,n) => {
-    ["pos1","pos2","pos3"].forEach(pr => {
-      players.forEach(p => {
-        if (!used.has(p.id) && p[pr]===pos && result[pos].length<n) {
-          result[pos].push(p); used.add(p.id);
-        }
-      });
-    });
-  };
-  pick("GK",f.gk); pick("DF",f.df); pick("MF",f.mf); pick("FW",f.fw);
-  players.forEach(p => {
-    if (!used.has(p.id)) {
-      if (forceAll) { const bp=[p.pos1,p.pos2,p.pos3].find(Boolean)||"MF"; result[bp].push(p); }
-      else result.SUB.push(p);
-    }
+  const counts = f ? { GK:f.gk, DF:f.df, MF:f.mf, FW:f.fw } : { GK:1,DF:4,MF:3,FW:3 };
+  const slots = {};
+  ["GK","DF","MF","FW"].forEach(pos=>{
+    slots[pos] = Array.from({length:counts[pos]}, ()=>[]);
   });
-  return result;
+  const used = new Set();
+  const prs = [["pos1","side1"],["pos2","side2"],["pos3","side3"]];
+
+  // パス1: サイド適性が枠と一致する空き枠に配置
+  prs.forEach(([pr,sr])=>{
+    players.forEach(p=>{
+      if(used.has(p.id)) return;
+      const pos=p[pr]; if(!pos||!slots[pos]) return;
+      const sides=slotSides(slots[pos].length);
+      const idx=sides.findIndex((s,i)=>slots[pos][i].length===0 && sideMatches(p[sr],s));
+      if(idx>=0){ slots[pos][idx].push({...p,_side:p[sr]||""}); used.add(p.id); }
+    });
+  });
+  // パス2: 同ポジションの空き枠ならどこでも配置
+  prs.forEach(([pr,sr])=>{
+    players.forEach(p=>{
+      if(used.has(p.id)) return;
+      const pos=p[pr]; if(!pos||!slots[pos]) return;
+      const idx=slots[pos].findIndex(sl=>sl.length===0);
+      if(idx>=0){ slots[pos][idx].push({...p,_side:p[sr]||""}); used.add(p.id); }
+    });
+  });
+  // パス3: 余りは得意ポジションの枠に重ねる（サイド一致優先・少ない枠優先）
+  players.forEach(p=>{
+    if(used.has(p.id)) return;
+    const i0=[p.pos1,p.pos2,p.pos3].findIndex(Boolean);
+    const pos=i0>=0?[p.pos1,p.pos2,p.pos3][i0]:"MF";
+    const side=i0>=0?[p.side1,p.side2,p.side3][i0]:"";
+    const row=slots[pos]||slots["MF"];
+    const sides=slotSides(row.length);
+    let best=-1, bestN=Infinity;
+    sides.forEach((s,i)=>{ if(sideMatches(side,s)&&row[i].length<bestN){best=i;bestN=row[i].length;} });
+    if(best<0){ row.forEach((sl,i)=>{ if(sl.length<bestN){best=i;bestN=sl.length;} }); }
+    row[best].push({...p,_side:side||""});
+    used.add(p.id);
+  });
+  return slots;
 }
 
 function splitTeams(players) {
@@ -113,18 +166,123 @@ function splitTeams(players) {
   return { red, white };
 }
 
-function FieldDisplay({ formation, accentColor }) {
-  const Dot = ({ p, small }) => (
-    <div style={{ display:"flex",flexDirection:"column",alignItems:"center",background:"rgba(255,255,255,0.13)",
-      borderRadius:7,padding:small?"3px 5px":"5px 8px",minWidth:small?34:44 }}>
-      <div style={{ width:small?22:28,height:small?22:28,borderRadius:"50%",
-        background:accentColor||POS_COLOR[p.pos1]||"#64748b",
-        display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:small?9:12 }}>
-        {p.number}
+function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotRot={}, onRotate, canDrag=false, moves=[], onMove }) {
+  const [dragPid, setDragPid] = useState(null);
+  const pressRef = useRef(null);
+  const justDraggedRef = useRef(false);
+
+  // スロットをコピーして手動移動を適用
+  const slots = {};
+  ["GK","DF","MF","FW"].forEach(pos=>{
+    slots[pos] = (baseSlots[pos]||[]).map(sl=>[...sl]);
+  });
+  const locate = (pid)=>{
+    for(const pos of ["FW","MF","DF","GK"]){
+      for(let si=0;si<slots[pos].length;si++){
+        const ki=slots[pos][si].findIndex(p=>p.id===pid);
+        if(ki>=0) return [pos,si,ki];
+      }
+    }
+    return null;
+  };
+  moves.forEach(([pid,slotKey])=>{
+    const loc=locate(pid);
+    if(!loc) return;
+    const [pos,si,ki]=loc;
+    const [tPos,tSi]=slotKey.split("__");
+    if(!slots[tPos]||!slots[tPos][parseInt(tSi)]) return;
+    const player=slots[pos][si].splice(ki,1)[0];
+    slots[tPos][parseInt(tSi)].push(player);
+  });
+
+  const totalPlayers = ["GK","DF","MF","FW"].reduce((a,pos)=>a+slots[pos].reduce((b,sl)=>b+sl.length,0),0);
+
+  const startPress = (pid) => {
+    if(!canDrag) return;
+    pressRef.current = setTimeout(()=>{ setDragPid(pid); }, 350);
+  };
+  const cancelPress = () => { if(pressRef.current){ clearTimeout(pressRef.current); pressRef.current=null; } };
+  const handleUp = (e) => {
+    cancelPress();
+    if(dragPid!==null){
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const slotEl = el && el.closest("[data-slotkey]");
+      if(slotEl && onMove){
+        const targetKey = slotEl.getAttribute("data-slotkey");
+        const loc = locate(dragPid);
+        const curKey = loc ? `${loc[0]}__${loc[1]}` : null;
+        if(targetKey!==curKey) onMove(dragPid, targetKey);
+      }
+      justDraggedRef.current = true;
+      setTimeout(()=>{ justDraggedRef.current=false; }, 100);
+      setDragPid(null);
+    }
+  };
+
+  const renderRow = (pos) => {
+    const row = slots[pos]||[];
+    if (!row.length) return null;
+    const sides = slotSides(row.length);
+    return (
+      <div key={pos} style={{ marginBottom:6 }}>
+        <div style={{ fontSize:9,color:"rgba(255,255,255,0.45)",textAlign:"center",marginBottom:3 }}>{pos}</div>
+        <div style={{ display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap" }}>
+          {row.map((slot,si)=>{
+            const slotKey=`${pos}__${si}`;
+            const rotKey=`${rotPrefix}${pos}-${si}`;
+            const label=roleLabel(pos,sides[si]);
+            if(slot.length===0){
+              // 空枠
+              return (
+                <div key={slotKey} data-slotkey={slotKey}
+                  onPointerUp={handleUp}
+                  style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                    borderRadius:7,padding:"5px 8px",minWidth:44,minHeight:48,
+                    border:"1.5px dashed rgba(255,255,255,0.3)",
+                    background:dragPid!==null?"rgba(255,255,255,0.1)":"transparent" }}>
+                  <div style={{ fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700 }}>{label}</div>
+                </div>
+              );
+            }
+            const rot=slotRot[rotKey]||0;
+            const cur=slot[rot%slot.length];
+            const hasMore=slot.length>1;
+            const isDragging=dragPid===cur.id;
+            return (
+              <div key={slotKey}
+                data-slotkey={slotKey}
+                onClick={()=>{ if(justDraggedRef.current) return; hasMore&&onRotate&&onRotate(rotKey); }}
+                onPointerDown={()=>startPress(cur.id)}
+                onPointerUp={handleUp}
+                onPointerCancel={cancelPress}
+                style={{ display:"flex",flexDirection:"column",alignItems:"center",
+                  background:isDragging?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.13)",
+                  borderRadius:7,padding:"5px 8px",minWidth:44,
+                  position:"relative",cursor:hasMore?"pointer":canDrag?"grab":"default",
+                  border:isDragging?"2px solid #fbbf24":hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
+                  transform:isDragging?"scale(1.15)":"none",
+                  transition:"transform 0.15s",
+                  touchAction:canDrag?"none":"auto",
+                  zIndex:isDragging?10:1 }}>
+                {hasMore&&(
+                  <div style={{ position:"absolute",top:-6,right:-6,background:"#f59e0b",color:"#fff",
+                    fontSize:8,fontWeight:800,borderRadius:10,padding:"1px 5px" }}>+{slot.length-1}</div>
+                )}
+                <div style={{ width:28,height:28,borderRadius:"50%",
+                  background:accentColor||POS_COLOR[cur.pos1]||"#64748b",
+                  display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:12 }}>
+                  {cur.number}
+                </div>
+                <div style={{ fontSize:9,color:"#e2e8f0",marginTop:2,textAlign:"center" }}>{cur.name.split(" ")[0]}</div>
+                <div style={{ fontSize:7,color:"rgba(255,255,255,0.5)" }}>{label}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <div style={{ fontSize:small?7:9,color:"#e2e8f0",marginTop:2,textAlign:"center" }}>{p.name.split(" ")[0]}</div>
-    </div>
-  );
+    );
+  };
+
   return (
     <div style={{ background:accentColor?`linear-gradient(180deg,${accentColor}22 0%,#15803d 100%)`
       :"linear-gradient(180deg,#166534 0%,#15803d 50%,#16a34a 100%)",
@@ -134,23 +292,13 @@ function FieldDisplay({ formation, accentColor }) {
       <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
         width:40,height:40,border:"1.5px solid rgba(255,255,255,0.12)",borderRadius:"50%",pointerEvents:"none" }} />
       <div style={{ position:"relative",zIndex:1 }}>
-        {["FW","MF","DF","GK"].map(pos=>formation[pos]?.length>0&&(
-          <div key={pos} style={{ marginBottom:6 }}>
-            <div style={{ fontSize:9,color:"rgba(255,255,255,0.45)",textAlign:"center",marginBottom:3 }}>{pos}</div>
-            <div style={{ display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap" }}>
-              {formation[pos].map((p,i)=><Dot key={`${p.id}-${i}`} p={p} />)}
-            </div>
-          </div>
-        ))}
-        {Object.values(formation).flat().length===0&&(
+        {["FW","MF","DF","GK"].map(pos=>renderRow(pos))}
+        {totalPlayers===0&&(
           <div style={{ color:"rgba(255,255,255,0.4)",textAlign:"center",padding:24,fontSize:13 }}>出席者がいません</div>
         )}
-        {formation.SUB?.length>0&&(
-          <div style={{ marginTop:10,borderTop:"1px dashed rgba(255,255,255,0.25)",paddingTop:8 }}>
-            <div style={{ fontSize:9,color:"rgba(255,255,255,0.45)",textAlign:"center",marginBottom:4 }}>控え</div>
-            <div style={{ display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap" }}>
-              {formation.SUB.map((p,i)=><Dot key={`sub-${p.id}-${i}`} p={p} small />)}
-            </div>
+        {totalPlayers>0&&(
+          <div style={{ fontSize:9,color:"rgba(255,255,255,0.5)",textAlign:"center",marginTop:6 }}>
+            点線枠（+数字）はタップで選手交代{canDrag?"　/　長押し→移動先で離して配置変更":""}
           </div>
         )}
       </div>
@@ -178,8 +326,13 @@ export default function App() {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [formationEvId, setFormationEvId] = useState(1);
   const [formationKey, setFormationKey] = useState("4-3-3");
+  const [slotRot, setSlotRot] = useState({});
+  const rotateSlot = (key) => setSlotRot(p=>({...p,[key]:(p[key]||0)+1}));
+  const [fieldSwaps, setFieldSwaps] = useState({});
+  const addSwap = (key,a,b) => setFieldSwaps(p=>({...p,[key]:[...(p[key]||[]),[a,b]]}));
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddEvent, setShowAddEvent] = useState(false);
+  const [editEventId, setEditEventId] = useState(null);
   const [showAddAnn, setShowAddAnn] = useState(false);
   const [showMemberDetail, setShowMemberDetail] = useState(null);
   const [showReminder, setShowReminder] = useState(null);
@@ -189,9 +342,9 @@ export default function App() {
   const [showPositionPrompt, setShowPositionPrompt] = useState(false);
 
   const blankMember = { name:"",number:"" };
-  const blankEvent  = { type:"match",title:"",date:"",timeFrom:"",timeTo:"",place:"",note:"",playerCount:11,deadline:"",deadlineTime:"" };
+  const blankEvent  = { type:"match",title:"",date:"",timeFrom:"",timeTo:"",place:"",mapUrl:"",note:"",playerCount:11,deadline:"",deadlineTime:"",meetTime:"",uniform:"" };
   const blankAnn    = { title:"",body:"" };
-  const blankPos    = { pos1:"MF",pos2:"",pos3:"",side:"センター" };
+  const blankPos    = { pos1:"",pos2:"",pos3:"",side1:"",side2:"",side3:"" };
   const [newMember, setNM] = useState(blankMember);
   const [newEvent,  setNE] = useState(blankEvent);
   const [newAnn,    setNA] = useState(blankAnn);
@@ -244,11 +397,16 @@ export default function App() {
   };
   const addEvent = () => {
     if(!newEvent.title||!newEvent.date) return;
-    const id=Math.max(...events.map(e=>e.id))+1;
-    setEvents(p=>[...p,{...newEvent,id}]);
-    const att={}; members.forEach(m=>{att[m.id]={status:"未回答"};});
-    setAttendance(p=>({...p,[id]:att}));
-    setNE(blankEvent); setShowAddEvent(false);
+    if(editEventId){
+      // 既存イベントを更新（出欠データは維持）
+      setEvents(p=>p.map(e=>e.id===editEventId?{...newEvent,id:editEventId}:e));
+    } else {
+      const id=Math.max(...events.map(e=>e.id),0)+1;
+      setEvents(p=>[...p,{...newEvent,id}]);
+      const att={}; members.forEach(m=>{att[m.id]={status:"未回答"};});
+      setAttendance(p=>({...p,[id]:att}));
+    }
+    setNE(blankEvent); setEditEventId(null); setShowAddEvent(false);
   };
   const addAnn = () => {
     if(!newAnn.title) return;
@@ -260,7 +418,7 @@ export default function App() {
     const ev=events.find(e=>e.id===evId);
     const unans=getByStatus(evId,"未回答");
     if(!ev) return "";
-    return `【出欠確認リマインド】\n📅 ${ev.date.slice(5).replace("-","/")} ${ev.timeFrom}〜${ev.timeTo} ${ev.title}\n📍 ${ev.place}\n⏰ 回答期限: ${ev.deadline?(ev.deadline.slice(5).replace("-","/")+' '+( ev.deadlineTime||"")):"未設定"}\n\n以下のメンバーがまだ未回答です：\n${unans.map(m=>`・${m.name}`).join("\n")}\n\nご回答よろしくお願いします！`;
+    return `【出欠確認リマインド】\n📅 ${ev.date.slice(5).replace("-","/")} ${ev.timeFrom}〜${ev.timeTo} ${ev.title}\n${ev.meetTime?`🕐 集合: ${ev.meetTime}\n`:""}${ev.uniform?`👕 ユニフォーム: ${ev.uniform.split(",").join("・")}\n`:""}📍 ${ev.place}\n⏰ 回答期限: ${ev.deadline?(ev.deadline.slice(5).replace("-","/")+' '+( ev.deadlineTime||"")):"未設定"}\n\n以下のメンバーがまだ未回答です：\n${unans.map(m=>`・${m.name}`).join("\n")}\n\nご回答よろしくお願いします！`;
   };
   const handleCopy = txt => {
     navigator.clipboard.writeText(txt).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2200);});
@@ -321,7 +479,7 @@ export default function App() {
             <div key={m.id} style={{...S.card,display:"flex",alignItems:"center",gap:12,cursor:"pointer",marginBottom:8}}
               onClick={()=>{
                 setCurrentUser(m.id);
-                if(noPos){ setPD({pos1:"MF",pos2:"",pos3:"",side:"センター"}); setShowPositionPrompt(true); }
+                if(noPos){ setPD({pos1:"",pos2:"",pos3:"",side1:"",side2:"",side3:""}); setShowPositionPrompt(true); }
                 setShowLogin(false);
               }}>
               <div style={{width:36,height:36,borderRadius:"50%",background:m.pos1?POS_COLOR[m.pos1]:"#94a3b8",color:"#fff",
@@ -329,7 +487,7 @@ export default function App() {
               <div style={{flex:1}}>
                 <div style={{fontWeight:700,fontSize:14}}>{m.name}</div>
                 <div style={{fontSize:11,color:noPos?"#f59e0b":"#94a3b8"}}>
-                  {noPos?"⚠️ ポジション未入力":(`${m.pos1}${m.pos2?" / "+m.pos2:""} / ${m.side}`)}
+                  {noPos?"⚠️ ポジション未入力":(`${m.pos1}${m.side1?`(${m.side1})`:""}${m.pos2?` / ${m.pos2}${m.side2?`(${m.side2})`:""}`:""}`)}
                 </div>
               </div>
             </div>
@@ -351,30 +509,37 @@ export default function App() {
           <div style={{fontSize:13,color:"#64748b",marginBottom:16}}>
             あなたのポジション適性を登録しましょう。布陣の自動作成に使われます。
           </div>
-          <div style={S.row}>
-            {[["pos1","第1（必須）"],["pos2","第2"],["pos3","第3"]].map(([key,label])=>(
-              <div key={key} style={{flex:1}}>
-                <label style={S.lbl}>{label}</label>
-                <select style={S.sel} value={posData[key]} onChange={e=>setPD(p=>({...p,[key]:e.target.value}))}>
-                  {key!=="pos1"&&<option value="">なし</option>}
-                  {POSITIONS.map(pos=><option key={pos}>{pos}</option>)}
-                </select>
-              </div>
-            ))}
-          </div>
-          <div style={{marginBottom:16}}>
-            <label style={S.lbl}>サイド適性</label>
-            <div style={{display:"flex",gap:8}}>
-              {SIDES.map(s=>(
-                <label key={s} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
-                  border:`1.5px solid ${posData.side===s?"#3b82f6":"#e2e8f0"}`,borderRadius:8,padding:"8px 4px",
-                  cursor:"pointer",background:posData.side===s?"#eff6ff":"#fff",fontSize:13,fontWeight:posData.side===s?700:400}}>
-                  <input type="radio" name="pside" checked={posData.side===s} onChange={()=>setPD(p=>({...p,side:s}))} style={{display:"none"}}/>
-                  {s}
-                </label>
-              ))}
+          {[["pos1","side1","第1（必須）"],["pos2","side2","第2"],["pos3","side3","第3"]].map(([pKey,sKey,label])=>(
+            <div key={pKey} style={{marginBottom:12,padding:"10px 12px",background:"#f8fafc",borderRadius:10}}>
+              <label style={S.lbl}>{label}ポジション</label>
+              <select style={{...S.sel,marginBottom:8}} value={posData[pKey]||""} onChange={e=>setPD(p=>({...p,[pKey]:e.target.value}))}>
+                <option value="">{pKey==="pos1"?"選択してください":"なし"}</option>
+                {POSITIONS.map(pos=><option key={pos}>{pos}</option>)}
+              </select>
+              {posData[pKey]&&posData[pKey]!=="GK"&&(
+                <div style={{display:"flex",gap:6}}>
+                  {["なし",...SIDES].map(s=>{
+                    const sel=(posData[sKey]||"").split(",").filter(Boolean);
+                    const checked=sel.includes(s);
+                    const toggle=()=>{
+                      let next;
+                      if(s==="なし"){ next=checked?[]:["なし"]; }
+                      else { next=checked?sel.filter(x=>x!==s):[...sel.filter(x=>x!=="なし"),s]; }
+                      setPD(p=>({...p,[sKey]:next.join(",")}));
+                    };
+                    return (
+                      <label key={s} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
+                        border:`1.5px solid ${checked?"#3b82f6":"#e2e8f0"}`,borderRadius:8,padding:"6px 2px",
+                        cursor:"pointer",background:checked?"#eff6ff":"#fff",fontSize:11,fontWeight:checked?700:400}}>
+                        <input type="checkbox" checked={checked} onChange={toggle} style={{display:"none"}}/>
+                        {s}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
+          ))}
           <div style={{display:"flex",gap:8}}>
             <button style={{...S.btn,flex:1}} onClick={savePosition}>登録する</button>
             <button style={{...S.btnGhost,flex:1}} onClick={()=>setShowPositionPrompt(false)}>あとで入力</button>
@@ -494,30 +659,37 @@ export default function App() {
           <input style={S.inp} type="number" value={data.number} onChange={e=>setData(p=>({...p,number:e.target.value}))}/>
         </div>
       </div>
-      <div style={S.row}>
-        {[["pos1","第1"],["pos2","第2"],["pos3","第3"]].map(([key,label])=>(
-          <div key={key} style={{flex:1}}>
-            <label style={S.lbl}>{label}</label>
-            <select style={S.sel} value={data[key]||""} onChange={e=>setData(p=>({...p,[key]:e.target.value}))}>
-              {key!=="pos1"&&<option value="">なし</option>}
-              {POSITIONS.map(pos=><option key={pos}>{pos}</option>)}
-            </select>
-          </div>
-        ))}
-      </div>
-      <div style={{marginBottom:14}}>
-        <label style={S.lbl}>サイド適性</label>
-        <div style={{display:"flex",gap:8}}>
-          {SIDES.map(s=>(
-            <label key={s} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
-              border:`1.5px solid ${data.side===s?"#3b82f6":"#e2e8f0"}`,borderRadius:8,padding:"8px 4px",
-              cursor:"pointer",background:data.side===s?"#eff6ff":"#fff",fontSize:13,fontWeight:data.side===s?700:400}}>
-              <input type="radio" name="side" checked={data.side===s} onChange={()=>setData(p=>({...p,side:s}))} style={{display:"none"}}/>
-              {s}
-            </label>
-          ))}
+      {[["pos1","side1","第1"],["pos2","side2","第2"],["pos3","side3","第3"]].map(([pKey,sKey,label])=>(
+        <div key={pKey} style={{marginBottom:12,padding:"10px 12px",background:"#f8fafc",borderRadius:10}}>
+          <label style={S.lbl}>{label}ポジション</label>
+          <select style={{...S.sel,marginBottom:8}} value={data[pKey]||""} onChange={e=>setData(p=>({...p,[pKey]:e.target.value}))}>
+            <option value="">{pKey==="pos1"?"選択してください":"なし"}</option>
+            {POSITIONS.map(pos=><option key={pos}>{pos}</option>)}
+          </select>
+          {data[pKey]&&data[pKey]!=="GK"&&(
+            <div style={{display:"flex",gap:6}}>
+              {["なし",...SIDES].map(s=>{
+                const sel=(data[sKey]||"").split(",").filter(Boolean);
+                const checked=sel.includes(s);
+                const toggle=()=>{
+                  let next;
+                  if(s==="なし"){ next=checked?[]:["なし"]; }
+                  else { next=checked?sel.filter(x=>x!==s):[...sel.filter(x=>x!=="なし"),s]; }
+                  setData(p=>({...p,[sKey]:next.join(",")}));
+                };
+                return (
+                  <label key={s} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",
+                    border:`1.5px solid ${checked?"#3b82f6":"#e2e8f0"}`,borderRadius:8,padding:"6px 2px",
+                    cursor:"pointer",background:checked?"#eff6ff":"#fff",fontSize:11,fontWeight:checked?700:400}}>
+                    <input type="checkbox" checked={checked} onChange={toggle} style={{display:"none"}}/>
+                    {s}
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
+      ))}
       <div style={{display:"flex",gap:8}}>
         <button style={{...S.btn,flex:1}} onClick={()=>onSave(data)}>保存する</button>
         <button style={{...S.btnGhost,flex:1}} onClick={onCancel}>キャンセル</button>
@@ -530,7 +702,7 @@ export default function App() {
     <div style={S.body}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{fontSize:15,fontWeight:700}}>スケジュール</div>
-        {isManager&&<button style={S.btnSm} onClick={()=>setShowAddEvent(true)}>＋ 追加</button>}
+        {isManager&&<button style={S.btnSm} onClick={()=>{setNE(blankEvent);setEditEventId(null);setShowAddEvent(true);}}>＋ 追加</button>}
       </div>
       {sortedEvents.map(ev=>{
         const yes=getByStatus(ev.id,"出席").length,no=getByStatus(ev.id,"欠席").length,
@@ -548,13 +720,14 @@ export default function App() {
               </div>
               <div style={{fontSize:12,color:"#64748b",textAlign:"right"}}>
                 {ev.date.slice(5).replace("-","/")}
+                {ev.meetTime&&<div style={{fontSize:11,color:"#d97706",fontWeight:700}}>集合 {ev.meetTime}</div>}
                 <div style={{fontSize:11,color:"#94a3b8"}}>{ev.timeFrom}{ev.timeTo?`〜${ev.timeTo}`:""}</div>
                 <div style={{fontSize:10,color:"#94a3b8"}}>{ev.playerCount}人制</div>
               </div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
               <span style={{fontSize:12,color:"#64748b"}}>📍 {ev.place}</span>
-              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.place)}`}
+              <a href={ev.mapUrl||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.place)}`}
                 target="_blank" rel="noopener noreferrer"
                 style={{fontSize:11,color:"#3b82f6",background:"#eff6ff",borderRadius:4,padding:"1px 6px",textDecoration:"none"}}
                 onClick={e=>e.stopPropagation()}>地図</a>
@@ -566,6 +739,19 @@ export default function App() {
                 <span style={{fontSize:11,fontWeight:700,color:dlPast?"#dc2626":dlSoon?"#d97706":"#15803d"}}>
                   {dlPast?"⚠️ 期限切れ":dlSoon?"🔔 もうすぐ締切":"📋 回答期限:"} {ev.deadline.slice(5).replace("-","/")} {ev.deadlineTime||""}
                 </span>
+              </div>
+            )}
+            {ev.uniform&&(
+              <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5}}>
+                <span style={{fontSize:11,color:"#64748b"}}>👕 ユニフォーム:</span>
+                {ev.uniform.split(",").map(c=>(
+                  <span key={c} style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:11,fontWeight:700,
+                    color:c==="赤"?"#dc2626":c==="紺"?"#1e3a5f":"#475569"}}>
+                    <span style={{width:12,height:12,borderRadius:"50%",border:"1px solid #cbd5e1",
+                      background:c==="赤"?"#dc2626":c==="紺"?"#1e3a5f":"#f8fafc",display:"inline-block"}}></span>
+                    {c}
+                  </span>
+                ))}
               </div>
             )}
             {ev.note&&<div style={{fontSize:11,color:"#94a3b8",marginTop:3}}>{ev.note}</div>}
@@ -606,15 +792,25 @@ export default function App() {
                   )}
                 </div>
                 {isManager&&(
-                  <button style={{...S.btnSm,background:"#ef4444",width:"100%",marginTop:8}}
-                    onClick={()=>{
-                      if(window.confirm(`「${ev.title}」を削除しますか？`)){
-                        setEvents(p=>p.filter(e=>e.id!==ev.id));
-                        setSelectedEventId(null);
-                      }
-                    }}>
-                    🗑️ このイベントを削除
-                  </button>
+                  <div style={{display:"flex",gap:8,marginTop:8}}>
+                    <button style={{...S.btnSm,flex:1}}
+                      onClick={()=>{
+                        setNE({...blankEvent,...ev});
+                        setEditEventId(ev.id);
+                        setShowAddEvent(true);
+                      }}>
+                      ✏️ 編集
+                    </button>
+                    <button style={{...S.btnSm,background:"#ef4444",flex:1}}
+                      onClick={()=>{
+                        if(window.confirm(`「${ev.title}」を削除しますか？`)){
+                          setEvents(p=>p.filter(e=>e.id!==ev.id));
+                          setSelectedEventId(null);
+                        }
+                      }}>
+                      🗑️ 削除
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -637,6 +833,14 @@ export default function App() {
             <div style={{fontSize:11,color:"#94a3b8"}}>{a.date.slice(5).replace("-","/")}</div>
           </div>
           <div style={{fontSize:13,color:"#475569",lineHeight:1.7}}>{a.body}</div>
+          {isManager&&(
+            <button style={{...S.btnGhost,color:"#ef4444",borderColor:"#fca5a5",marginTop:8,fontSize:11}}
+              onClick={()=>{
+                if(window.confirm(`「${a.title}」を削除しますか？`)){
+                  setAnnouncements(p=>p.filter(x=>x.id!==a.id));
+                }
+              }}>🗑️ 削除</button>
+          )}
         </div>
       ))}
     </div>
@@ -646,9 +850,9 @@ export default function App() {
     const ev=events.find(e=>e.id===formationEvId)||events[0];
     if(!ev) return null;
     const attending=members.filter(m=>getAtt(ev.id,m.id).status==="出席");
-    const forceAll=attending.length>=12;
     const is紅白=ev.type==="紅白戦";
-    const availF=Object.entries(FORMATIONS).filter(([,f])=>ev.playerCount<=8?f.min<=8:f.min===11);
+    const targetCount = ev.playerCount<=8?8:ev.playerCount;
+    const availF=Object.entries(FORMATIONS).filter(([,f])=>f.min===targetCount);
     const fKey=availF.find(([k])=>k===formationKey)?formationKey:availF[0]?.[0]||"4-3-3";
     return (
       <div style={S.body}>
@@ -673,19 +877,31 @@ export default function App() {
         </div>
         <div style={{fontSize:13,color:"#64748b",marginBottom:6}}>
           出席: {attending.length}名 / {members.length}名　{ev.playerCount}人制
-          {forceAll&&<span style={{marginLeft:6,color:"#f59e0b",fontWeight:700}}>⚠️ 12名以上：全員起用</span>}
         </div>
         {is紅白?(()=>{
           const {red,white}=splitTeams(attending);
           return (
             <div>
               <div style={{fontSize:13,fontWeight:700,color:"#dc2626",marginBottom:6}}>🔴 紅チーム（{red.length}名）</div>
-              <FieldDisplay formation={assignFormation(red,fKey,red.length>=12)} accentColor="#dc2626"/>
+              <FieldDisplay slots={assignFormation(red,fKey)} fKey={fKey} accentColor="#dc2626" rotPrefix="red-" slotRot={slotRot} onRotate={rotateSlot}
+                canDrag={isManager} moves={fieldSwaps[`${ev.id}|${fKey}|red`]||[]} onMove={(pid,sk)=>addSwap(`${ev.id}|${fKey}|red`,pid,sk)}/>
               <div style={{fontSize:13,fontWeight:700,color:"#475569",margin:"12px 0 6px"}}>⚪ 白チーム（{white.length}名）</div>
-              <FieldDisplay formation={assignFormation(white,fKey,white.length>=12)} accentColor="#475569"/>
+              <FieldDisplay slots={assignFormation(white,fKey)} fKey={fKey} accentColor="#475569" rotPrefix="white-" slotRot={slotRot} onRotate={rotateSlot}
+                canDrag={isManager} moves={fieldSwaps[`${ev.id}|${fKey}|white`]||[]} onMove={(pid,sk)=>addSwap(`${ev.id}|${fKey}|white`,pid,sk)}/>
             </div>
           );
-        })():<FieldDisplay formation={assignFormation(attending,fKey,forceAll)}/>}
+        })():<FieldDisplay slots={assignFormation(attending,fKey)} fKey={fKey} slotRot={slotRot} onRotate={rotateSlot}
+          canDrag={isManager} moves={fieldSwaps[`${ev.id}|${fKey}|`]||[]} onMove={(pid,sk)=>addSwap(`${ev.id}|${fKey}|`,pid,sk)}/>}
+        {isManager&&Object.keys(fieldSwaps).some(k=>k.startsWith(`${ev.id}|${fKey}|`))&&(
+          <button style={{...S.btnGhost,width:"100%",marginTop:8,fontSize:11}}
+            onClick={()=>setFieldSwaps(p=>{
+              const u={...p};
+              Object.keys(u).forEach(k=>{ if(k.startsWith(`${ev.id}|${fKey}|`)) delete u[k]; });
+              return u;
+            })}>
+            ↩️ 配置を自動配置に戻す
+          </button>
+        )}
       </div>
     );
   };
@@ -718,7 +934,7 @@ export default function App() {
                   color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:16}}>{m.number}</div>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:14}}>{m.name}</div>
-                  <div style={{fontSize:11,color:"#64748b"}}>{[m.pos1,m.pos2,m.pos3].filter(Boolean).join(" › ")}　{m.side}</div>
+                  <div style={{fontSize:11,color:"#64748b"}}>{[[m.pos1,m.side1],[m.pos2,m.side2],[m.pos3,m.side3]].filter(([p])=>p).map(([p,s])=>`${p}${s?`(${s})`:""}`).join(" › ")}</div>
                 </div>
                 <div style={{fontSize:18,color:"#cbd5e1"}}>›</div>
               </div>
@@ -853,7 +1069,7 @@ export default function App() {
       {showAddEvent&&(
         <div style={S.modal} onClick={()=>setShowAddEvent(false)}>
           <div style={S.mbox} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:16,fontWeight:800,marginBottom:14}}>イベント追加</div>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:14}}>{editEventId?"イベント編集":"イベント追加"}</div>
             <div style={{marginBottom:10}}>
               <label style={S.lbl}>種別</label>
               <select style={S.sel} value={newEvent.type} onChange={e=>setNE(p=>({...p,type:e.target.value}))}>
@@ -867,6 +1083,13 @@ export default function App() {
             <div style={{marginBottom:10}}>
               <label style={S.lbl}>日付</label>
               <input style={S.inp} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
+              <select style={S.sel} value={newEvent.meetTime} onChange={e=>setNE(p=>({...p,meetTime:e.target.value}))}>
+                <option value="">--:--</option>
+                {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
+              </select>
             </div>
             <div style={S.row}>
               <div style={{flex:1}}>
@@ -885,15 +1108,22 @@ export default function App() {
               </div>
             </div>
             <div style={{marginBottom:10}}>
-              <label style={S.lbl}>場所（Googleマップ連動）</label>
+              <label style={S.lbl}>場所</label>
               <input style={S.inp} placeholder="例: 代々木公園グラウンド" value={newEvent.place} onChange={e=>setNE(p=>({...p,place:e.target.value}))}/>
               {newEvent.place&&(
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(newEvent.place)}`}
+                <a href={newEvent.mapUrl||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(newEvent.place)}`}
                   target="_blank" rel="noopener noreferrer"
                   style={{display:"inline-block",marginTop:4,fontSize:11,color:"#3b82f6",textDecoration:"none"}}>
                   📍 Googleマップで確認する →
                 </a>
               )}
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={S.lbl}>マップURL（位置がズレる場合）</label>
+              <input style={S.inp} placeholder="Googleマップの共有リンクを貼り付け" value={newEvent.mapUrl} onChange={e=>setNE(p=>({...p,mapUrl:e.target.value}))}/>
+              <div style={{fontSize:10,color:"#94a3b8",marginTop:3}}>
+                Googleマップで正しい場所を開き「共有」→「リンクをコピー」して貼り付けると、全員の地図リンクがその場所になります
+              </div>
             </div>
             <div style={{marginBottom:10}}>
               <label style={{...S.lbl,color:"#d97706"}}>⏰ 回答期限</label>
@@ -904,7 +1134,7 @@ export default function App() {
                 <div style={{flex:1}}>
                   <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb"}} value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
                     <option value="">時間指定なし</option>
-                    {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
+                    {Array.from({length:24},(_,i)=>{const h=i.toString().padStart(2,"0");return <option key={i} value={`${h}:00`}>{`${h}:00`}</option>;})}
                   </select>
                 </div>
               </div>
@@ -915,13 +1145,35 @@ export default function App() {
                 {[8,9,10,11].map(n=><option key={n} value={n}>{n}人制</option>)}
               </select>
             </div>
+            <div style={{marginBottom:10}}>
+              <label style={S.lbl}>ユニフォームの色（複数選択可）</label>
+              <div style={{display:"flex",gap:8}}>
+                {[["赤","#dc2626","#fff"],["白","#f8fafc","#475569"],["紺","#1e3a5f","#fff"]].map(([c,bg,fg])=>{
+                  const sel=(newEvent.uniform||"").split(",").filter(Boolean);
+                  const checked=sel.includes(c);
+                  const toggle=()=>{
+                    const next=checked?sel.filter(x=>x!==c):[...sel,c];
+                    setNE(p=>({...p,uniform:next.join(",")}));
+                  };
+                  return (
+                    <label key={c} style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                      border:`2px solid ${checked?"#3b82f6":"#e2e8f0"}`,borderRadius:8,padding:"9px 4px",
+                      cursor:"pointer",background:checked?"#eff6ff":"#fff",fontSize:13,fontWeight:checked?700:400}}>
+                      <input type="checkbox" checked={checked} onChange={toggle} style={{display:"none"}}/>
+                      <span style={{width:16,height:16,borderRadius:"50%",background:bg,border:"1.5px solid #cbd5e1",display:"inline-block"}}></span>
+                      {c}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <div style={{marginBottom:16}}>
               <label style={S.lbl}>メモ</label>
               <input style={S.inp} placeholder="例: ホーム戦" value={newEvent.note} onChange={e=>setNE(p=>({...p,note:e.target.value}))}/>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button style={{...S.btn,flex:1}} onClick={addEvent}>追加する</button>
-              <button style={{...S.btnGhost,flex:1}} onClick={()=>setShowAddEvent(false)}>キャンセル</button>
+              <button style={{...S.btn,flex:1}} onClick={addEvent}>{editEventId?"保存する":"追加する"}</button>
+              <button style={{...S.btnGhost,flex:1}} onClick={()=>{setShowAddEvent(false);setEditEventId(null);}}>キャンセル</button>
             </div>
           </div>
         </div>
@@ -986,7 +1238,7 @@ export default function App() {
                   <div style={{flex:1}}>
                     <div style={{fontSize:17,fontWeight:800}}>{memberDetail.name}</div>
                     <div style={{fontSize:12,color:"#64748b"}}>
-                      {memberDetail.pos1?`${[memberDetail.pos1,memberDetail.pos2,memberDetail.pos3].filter(Boolean).join(" › ")}　${memberDetail.side}`:"ポジション未入力"}
+                      {memberDetail.pos1?[[memberDetail.pos1,memberDetail.side1],[memberDetail.pos2,memberDetail.side2],[memberDetail.pos3,memberDetail.side3]].filter(([p])=>p).map(([p,s])=>`${p}${s?`(${s})`:""}`).join(" › "):"ポジション未入力"}
                     </div>
                   </div>
                   <div style={{display:"flex",gap:6}}>
