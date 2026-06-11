@@ -1,4 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  "https://jkvijwroptupuahjzbed.supabase.co",
+  "sb_publishable_ER1nX6f3F8lgeCknxbu8ZA_Rd4YAN4q"
+);
 
 const POSITIONS = ["GK","DF","MF","FW"];
 const SIDES = ["センター","左","右"];
@@ -308,11 +314,57 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
 
 export default function App() {
   const [tab, setTab] = useState("schedule");
-  const [members, setMembers] = useState(initialMembers);
-  const [events, setEvents] = useState(initialEvents);
-  const [attendance, setAttendance] = useState(initAtt());
-  const [announcements, setAnnouncements] = useState(initialAnnouncements);
-  const [admins, setAdmins] = useState(initialAdmins);
+  const [members, setMembers] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [attendance, setAttendance] = useState({});
+  const [announcements, setAnnouncements] = useState([]);
+  const [admins, setAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ── Supabaseからデータ読み込み ──
+  const loadAll = async () => {
+    const [m,e,a,an,s] = await Promise.all([
+      supabase.from("members").select("*").order("number"),
+      supabase.from("events").select("*").order("date"),
+      supabase.from("attendance").select("*"),
+      supabase.from("announcements").select("*").order("id",{ascending:false}),
+      supabase.from("settings").select("*").eq("id",1).single(),
+    ]);
+    if(m.data) setMembers(m.data.map(r=>({id:r.id,name:r.name,number:r.number,
+      pos1:r.pos1||"",pos2:r.pos2||"",pos3:r.pos3||"",
+      side1:r.side1||"",side2:r.side2||"",side3:r.side3||""})));
+    if(e.data) setEvents(e.data.map(r=>({id:r.id,type:r.type,title:r.title,date:r.date,
+      timeFrom:r.time_from||"",timeTo:r.time_to||"",meetTime:r.meet_time||"",
+      place:r.place||"",mapUrl:r.map_url||"",note:r.note||"",
+      playerCount:r.player_count||11,deadline:r.deadline||"",deadlineTime:r.deadline_time||"",
+      uniform:r.uniform||""})));
+    if(a.data){
+      const att={};
+      a.data.forEach(r=>{
+        if(!att[r.event_id]) att[r.event_id]={};
+        att[r.event_id][r.member_id]={status:r.status||"未回答",decideBy:r.decide_by||"",comment:r.comment||""};
+      });
+      setAttendance(att);
+    }
+    if(an.data) setAnnouncements(an.data.map(r=>({id:r.id,date:r.date,title:r.title,body:r.body})));
+    if(s.data){
+      setTeamName(s.data.team_name||"チームマネージャー");
+      setLogoUrl(s.data.logo_url||null);
+      setAdmins((s.data.admins||"").split(",").filter(Boolean));
+    }
+    setLoading(false);
+  };
+
+  useEffect(()=>{
+    loadAll();
+    const onFocus=()=>loadAll();
+    window.addEventListener("focus",onFocus);
+    return ()=>window.removeEventListener("focus",onFocus);
+  },[]);
+
+  const saveSettings = async (patch) => {
+    await supabase.from("settings").update(patch).eq("id",1);
+  };
 
   const [currentUser, setCurrentUser] = useState(null);
   const [showLogin, setShowLogin] = useState(true);
@@ -358,8 +410,13 @@ export default function App() {
     .sort((a,b)=>a.date.localeCompare(b.date));
   const getAtt = (evId,mId) => attendance[evId]?.[mId]||{status:"未回答"};
   const getByStatus = (evId,st) => members.filter(m=>getAtt(evId,m.id).status===st);
-  const setAttStatus = (evId,mId,status,extra={}) =>
+  const setAttStatus = async (evId,mId,status,extra={}) => {
     setAttendance(p=>({...p,[evId]:{...p[evId],[mId]:{status,...extra}}}));
+    await supabase.from("attendance").upsert({
+      event_id:evId, member_id:mId, status,
+      decide_by:extra.decideBy||"", comment:extra.comment||""
+    });
+  };
 
   const today = new Date().toISOString().slice(0,10);
   const now = new Date();
@@ -379,40 +436,74 @@ export default function App() {
     return dt<now;
   };
 
-  const addMember = () => {
+  const addMember = async () => {
     if(!newMember.name||!newMember.number) return;
-    const id=Math.max(...members.map(m=>m.id))+1;
-    setMembers(p=>[...p,{...blankPos,name:newMember.name,id,number:parseInt(newMember.number)}]);
-    setAttendance(p=>{const u={...p};events.forEach(e=>{u[e.id]={...u[e.id],[id]:{status:"未回答"}};});return u;});
+    const id=Math.max(...members.map(m=>m.id),0)+1;
+    const row={...blankPos,name:newMember.name,id,number:parseInt(newMember.number)};
+    setMembers(p=>[...p,row]);
     setNM(blankMember); setShowAddMember(false);
+    await supabase.from("members").insert({id,name:row.name,number:row.number});
   };
-  const saveMember = data => {
-    setMembers(p=>p.map(m=>m.id===editMemberId?{...m,...data,number:parseInt(data.number)}:m));
+  const saveMember = async data => {
+    const upd={...data,number:parseInt(data.number)};
+    setMembers(p=>p.map(m=>m.id===editMemberId?{...m,...upd}:m));
+    const id=editMemberId;
     setEditMemberId(null); setShowMemberDetail(null);
+    await supabase.from("members").update({
+      name:upd.name,number:upd.number,
+      pos1:upd.pos1||"",pos2:upd.pos2||"",pos3:upd.pos3||"",
+      side1:upd.side1||"",side2:upd.side2||"",side3:upd.side3||""
+    }).eq("id",id);
   };
-  const savePosition = () => {
+  const deleteMember = async id => {
+    setMembers(p=>p.filter(m=>m.id!==id));
+    await supabase.from("members").delete().eq("id",id);
+  };
+  const savePosition = async () => {
     if(!currentUser||isManager) return;
     setMembers(p=>p.map(m=>m.id===currentUser?{...m,...posData}:m));
     setShowPositionPrompt(false);
+    await supabase.from("members").update({
+      pos1:posData.pos1||"",pos2:posData.pos2||"",pos3:posData.pos3||"",
+      side1:posData.side1||"",side2:posData.side2||"",side3:posData.side3||""
+    }).eq("id",currentUser);
   };
-  const addEvent = () => {
+  const eventToRow = (ev) => ({
+    type:ev.type, title:ev.title, date:ev.date,
+    time_from:ev.timeFrom||"", time_to:ev.timeTo||"", meet_time:ev.meetTime||"",
+    place:ev.place||"", map_url:ev.mapUrl||"", note:ev.note||"",
+    player_count:ev.playerCount||11, deadline:ev.deadline||"", deadline_time:ev.deadlineTime||"",
+    uniform:ev.uniform||""
+  });
+  const addEvent = async () => {
     if(!newEvent.title||!newEvent.date) return;
     if(editEventId){
-      // 既存イベントを更新（出欠データは維持）
       setEvents(p=>p.map(e=>e.id===editEventId?{...newEvent,id:editEventId}:e));
+      const id=editEventId;
+      setNE(blankEvent); setEditEventId(null); setShowAddEvent(false);
+      await supabase.from("events").update(eventToRow(newEvent)).eq("id",id);
     } else {
-      const id=Math.max(...events.map(e=>e.id),0)+1;
-      setEvents(p=>[...p,{...newEvent,id}]);
-      const att={}; members.forEach(m=>{att[m.id]={status:"未回答"};});
-      setAttendance(p=>({...p,[id]:att}));
+      const draft={...newEvent};
+      setNE(blankEvent); setEditEventId(null); setShowAddEvent(false);
+      const {data} = await supabase.from("events").insert(eventToRow(draft)).select().single();
+      if(data) setEvents(p=>[...p,{...draft,id:data.id}]);
     }
-    setNE(blankEvent); setEditEventId(null); setShowAddEvent(false);
   };
-  const addAnn = () => {
+  const deleteEvent = async id => {
+    setEvents(p=>p.filter(e=>e.id!==id));
+    await supabase.from("events").delete().eq("id",id);
+  };
+  const addAnn = async () => {
     if(!newAnn.title) return;
-    const id=Math.max(...announcements.map(a=>a.id))+1;
-    setAnnouncements(p=>[{...newAnn,id,date:new Date().toISOString().slice(0,10)},...p]);
+    const date=new Date().toISOString().slice(0,10);
+    const draft={...newAnn,date};
     setNA(blankAnn); setShowAddAnn(false);
+    const {data} = await supabase.from("announcements").insert({date,title:draft.title,body:draft.body}).select().single();
+    if(data) setAnnouncements(p=>[{...draft,id:data.id},...p]);
+  };
+  const deleteAnn = async id => {
+    setAnnouncements(p=>p.filter(a=>a.id!==id));
+    await supabase.from("announcements").delete().eq("id",id);
   };
   const reminderText = evId => {
     const ev=events.find(e=>e.id===evId);
@@ -425,7 +516,12 @@ export default function App() {
   };
   const handleLogoUpload = e => {
     const file=e.target.files[0]; if(!file) return;
-    const r=new FileReader(); r.onload=ev=>setLogoUrl(ev.target.result); r.readAsDataURL(file);
+    const r=new FileReader();
+    r.onload=ev=>{
+      setLogoUrl(ev.target.result);
+      saveSettings({logo_url:ev.target.result});
+    };
+    r.readAsDataURL(file);
   };
 
   const S = {
@@ -804,7 +900,7 @@ export default function App() {
                     <button style={{...S.btnSm,background:"#ef4444",flex:1}}
                       onClick={()=>{
                         if(window.confirm(`「${ev.title}」を削除しますか？`)){
-                          setEvents(p=>p.filter(e=>e.id!==ev.id));
+                          deleteEvent(ev.id);
                           setSelectedEventId(null);
                         }
                       }}>
@@ -837,7 +933,7 @@ export default function App() {
             <button style={{...S.btnGhost,color:"#ef4444",borderColor:"#fca5a5",marginTop:8,fontSize:11}}
               onClick={()=>{
                 if(window.confirm(`「${a.title}」を削除しますか？`)){
-                  setAnnouncements(p=>p.filter(x=>x.id!==a.id));
+                  deleteAnn(a.id);
                 }
               }}>🗑️ 削除</button>
           )}
@@ -1012,7 +1108,7 @@ export default function App() {
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 {logoUrl&&<img src={logoUrl} alt="logo" style={{width:48,height:48,borderRadius:8,objectFit:"cover"}}/>}
                 <button style={S.btnGhost} onClick={()=>logoInputRef.current.click()}>{logoUrl?"変更":"アップロード"}</button>
-                {logoUrl&&<button style={{...S.btnGhost,color:"#ef4444",borderColor:"#fca5a5"}} onClick={()=>setLogoUrl(null)}>削除</button>}
+                {logoUrl&&<button style={{...S.btnGhost,color:"#ef4444",borderColor:"#fca5a5"}} onClick={()=>{setLogoUrl(null);saveSettings({logo_url:""});}}>削除</button>}
               </div>
               <input ref={logoInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleLogoUpload}/>
             </div>
@@ -1023,16 +1119,20 @@ export default function App() {
                 <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                   <span style={{flex:1,fontSize:13,padding:"8px 12px",background:"#f8fafc",borderRadius:8}}>👑 {name}</span>
                   <button style={{...S.btnGhost,color:"#ef4444",borderColor:"#fca5a5",padding:"6px 10px"}}
-                    onClick={()=>setAdmins(p=>p.filter((_,j)=>j!==i))}>削除</button>
+                    onClick={()=>{const next=admins.filter((_,j)=>j!==i);setAdmins(next);saveSettings({admins:next.join(",")});}}>削除</button>
                 </div>
               ))}
               <div style={{display:"flex",gap:8,marginTop:8}}>
                 <input style={{...S.inp,flex:1}} placeholder="管理者名を追加" value={newAdminName} onChange={e=>setNewAdminName(e.target.value)}/>
-                <button style={S.btnSm} onClick={()=>{if(newAdminName){setAdmins(p=>[...p,newAdminName]);setNewAdminName("");}}}>追加</button>
+                <button style={S.btnSm} onClick={()=>{if(newAdminName){const next=[...admins,newAdminName];setAdmins(next);setNewAdminName("");saveSettings({admins:next.join(",")});}}}>追加</button>
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button style={{...S.btn,flex:1}} onClick={()=>{setTeamName(editTeamName);setShowSettings(false);}}>保存</button>
+              <button style={{...S.btn,flex:1}} onClick={()=>{
+                setTeamName(editTeamName);
+                saveSettings({team_name:editTeamName,logo_url:logoUrl||"",admins:admins.join(",")});
+                setShowSettings(false);
+              }}>保存</button>
               <button style={{...S.btnGhost,flex:1}} onClick={()=>setShowSettings(false)}>キャンセル</button>
             </div>
           </div>
@@ -1248,7 +1348,7 @@ export default function App() {
                     {isManager&&(
                       <button style={{...S.btnSm,background:"#ef4444"}} onClick={()=>{
                         if(window.confirm(`${memberDetail.name}を削除しますか？`)){
-                          setMembers(p=>p.filter(m=>m.id!==memberDetail.id));
+                          deleteMember(memberDetail.id);
                           setShowMemberDetail(null);
                         }
                       }}>削除</button>
