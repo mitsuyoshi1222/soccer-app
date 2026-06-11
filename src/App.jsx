@@ -189,7 +189,7 @@ export default function App() {
   const [showPositionPrompt, setShowPositionPrompt] = useState(false);
 
   const blankMember = { name:"",number:"" };
-  const blankEvent  = { type:"match",title:"",date:"",timeFrom:"",timeTo:"",place:"",note:"",playerCount:11,deadline:"" };
+  const blankEvent  = { type:"match",title:"",date:"",timeFrom:"",timeTo:"",place:"",note:"",playerCount:11,deadline:"",deadlineTime:"" };
   const blankAnn    = { title:"",body:"" };
   const blankPos    = { pos1:"MF",pos2:"",pos3:"",side:"センター" };
   const [newMember, setNM] = useState(blankMember);
@@ -199,15 +199,32 @@ export default function App() {
   const [posData,   setPD] = useState(blankPos);
 
   const isManager = currentUser === "manager";
-  const sortedEvents = [...events].sort((a,b)=>a.date.localeCompare(b.date));
+  const todayStr = new Date().toISOString().slice(0,10);
+  const sortedEvents = [...events]
+    .filter(ev => ev.date >= todayStr)
+    .sort((a,b)=>a.date.localeCompare(b.date));
   const getAtt = (evId,mId) => attendance[evId]?.[mId]||{status:"未回答"};
   const getByStatus = (evId,st) => members.filter(m=>getAtt(evId,m.id).status===st);
   const setAttStatus = (evId,mId,status,extra={}) =>
     setAttendance(p=>({...p,[evId]:{...p[evId],[mId]:{status,...extra}}}));
 
   const today = new Date().toISOString().slice(0,10);
-  const isDeadlineSoon = dl=>dl&&dl>=today&&dl<=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
-  const isDeadlinePast = dl=>dl&&dl<today;
+  const now = new Date();
+  const getDeadlineDt = (ev) => {
+    if(!ev.deadline) return null;
+    const dt = new Date(`${ev.deadline}T${ev.deadlineTime||"23:59"}:00`);
+    return dt;
+  };
+  const isDeadlineSoon = (ev) => {
+    const dt=getDeadlineDt(ev);
+    if(!dt) return false;
+    return dt>now && dt<=new Date(Date.now()+2*86400000);
+  };
+  const isDeadlinePast = (ev) => {
+    const dt=getDeadlineDt(ev);
+    if(!dt) return false;
+    return dt<now;
+  };
 
   const addMember = () => {
     if(!newMember.name||!newMember.number) return;
@@ -243,7 +260,7 @@ export default function App() {
     const ev=events.find(e=>e.id===evId);
     const unans=getByStatus(evId,"未回答");
     if(!ev) return "";
-    return `【出欠確認リマインド】\n📅 ${ev.date.slice(5).replace("-","/")} ${ev.timeFrom}〜${ev.timeTo} ${ev.title}\n📍 ${ev.place}\n⏰ 回答期限: ${ev.deadline||"未設定"}\n\n以下のメンバーがまだ未回答です：\n${unans.map(m=>`・${m.name}`).join("\n")}\n\nご回答よろしくお願いします！`;
+    return `【出欠確認リマインド】\n📅 ${ev.date.slice(5).replace("-","/")} ${ev.timeFrom}〜${ev.timeTo} ${ev.title}\n📍 ${ev.place}\n⏰ 回答期限: ${ev.deadline?(ev.deadline.slice(5).replace("-","/")+' '+( ev.deadlineTime||"")):"未設定"}\n\n以下のメンバーがまだ未回答です：\n${unans.map(m=>`・${m.name}`).join("\n")}\n\nご回答よろしくお願いします！`;
   };
   const handleCopy = txt => {
     navigator.clipboard.writeText(txt).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2200);});
@@ -520,7 +537,7 @@ export default function App() {
               maybe=getByStatus(ev.id,"検討中").length,ill=getByStatus(ev.id,"療養中").length,
               un=getByStatus(ev.id,"未回答").length;
         const open=selectedEventId===ev.id;
-        const dlSoon=isDeadlineSoon(ev.deadline),dlPast=isDeadlinePast(ev.deadline);
+        const dlSoon=isDeadlineSoon(ev),dlPast=isDeadlinePast(ev);
         return (
           <div key={ev.id} style={{...S.card,borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":"#22c55e"}`,cursor:"pointer"}}
             onClick={()=>setSelectedEventId(open?null:ev.id)}>
@@ -547,7 +564,7 @@ export default function App() {
                 background:dlPast?"#fef2f2":dlSoon?"#fffbeb":"#f0fdf4",
                 border:`1px solid ${dlPast?"#fca5a5":dlSoon?"#fcd34d":"#86efac"}`}}>
                 <span style={{fontSize:11,fontWeight:700,color:dlPast?"#dc2626":dlSoon?"#d97706":"#15803d"}}>
-                  {dlPast?"⚠️ 期限切れ":dlSoon?"🔔 もうすぐ締切":"📋 回答期限:"} {ev.deadline.slice(5).replace("-","/")}
+                  {dlPast?"⚠️ 期限切れ":dlSoon?"🔔 もうすぐ締切":"📋 回答期限:"} {ev.deadline.slice(5).replace("-","/")} {ev.deadlineTime||""}
                 </span>
               </div>
             )}
@@ -588,6 +605,17 @@ export default function App() {
                     </button>
                   )}
                 </div>
+                {isManager&&(
+                  <button style={{...S.btnSm,background:"#ef4444",width:"100%",marginTop:8}}
+                    onClick={()=>{
+                      if(window.confirm(`「${ev.title}」を削除しますか？`)){
+                        setEvents(p=>p.filter(e=>e.id!==ev.id));
+                        setSelectedEventId(null);
+                      }
+                    }}>
+                    🗑️ このイベントを削除
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -843,20 +871,43 @@ export default function App() {
             <div style={S.row}>
               <div style={{flex:1}}>
                 <label style={S.lbl}>開始時間</label>
-                <input style={S.inp} type="time" value={newEvent.timeFrom} onChange={e=>setNE(p=>({...p,timeFrom:e.target.value}))}/>
+                <select style={S.sel} value={newEvent.timeFrom} onChange={e=>setNE(p=>({...p,timeFrom:e.target.value}))}>
+                  <option value="">--:--</option>
+                  {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
+                </select>
               </div>
               <div style={{flex:1}}>
                 <label style={S.lbl}>終了時間</label>
-                <input style={S.inp} type="time" value={newEvent.timeTo} onChange={e=>setNE(p=>({...p,timeTo:e.target.value}))}/>
+                <select style={S.sel} value={newEvent.timeTo} onChange={e=>setNE(p=>({...p,timeTo:e.target.value}))}>
+                  <option value="">--:--</option>
+                  {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
+                </select>
               </div>
             </div>
             <div style={{marginBottom:10}}>
               <label style={S.lbl}>場所（Googleマップ連動）</label>
               <input style={S.inp} placeholder="例: 代々木公園グラウンド" value={newEvent.place} onChange={e=>setNE(p=>({...p,place:e.target.value}))}/>
+              {newEvent.place&&(
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(newEvent.place)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{display:"inline-block",marginTop:4,fontSize:11,color:"#3b82f6",textDecoration:"none"}}>
+                  📍 Googleマップで確認する →
+                </a>
+              )}
             </div>
             <div style={{marginBottom:10}}>
               <label style={{...S.lbl,color:"#d97706"}}>⏰ 回答期限</label>
-              <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb"}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
+              <div style={S.row}>
+                <div style={{flex:1}}>
+                  <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb"}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
+                </div>
+                <div style={{flex:1}}>
+                  <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb"}} value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
+                    <option value="">時間指定なし</option>
+                    {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
+                  </select>
+                </div>
+              </div>
             </div>
             <div style={{marginBottom:10}}>
               <label style={S.lbl}>人数（何人制）</label>
