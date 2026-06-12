@@ -202,8 +202,28 @@ function TimeSelect({ value, onChange, minuteStep=10, accent=false }) {
 
 function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotRot={}, onRotate, canDrag=false, moves=[], onMove }) {
   const [dragPid, setDragPid] = useState(null);
+  const [dragPos, setDragPos] = useState({x:0,y:0});
+  const [hoverKey, setHoverKey] = useState(null);
   const pressRef = useRef(null);
   const justDraggedRef = useRef(false);
+
+  // ドラッグ中: 指に追従＋ホバー先をハイライト
+  useEffect(()=>{
+    if(dragPid===null) return;
+    const onMove=(e)=>{
+      setDragPos({x:e.clientX,y:e.clientY});
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      const slotEl=el&&el.closest("[data-slotkey]");
+      setHoverKey(slotEl?slotEl.getAttribute("data-slotkey"):null);
+    };
+    const onUp=()=>{ setDragPid(null); setHoverKey(null); };
+    window.addEventListener("pointermove",onMove);
+    window.addEventListener("pointerup",onUp);
+    return ()=>{
+      window.removeEventListener("pointermove",onMove);
+      window.removeEventListener("pointerup",onUp);
+    };
+  },[dragPid]);
 
   // スロットをコピーして手動移動を適用
   const slots = {};
@@ -231,9 +251,14 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
 
   const totalPlayers = ["GK","DF","MF","FW"].reduce((a,pos)=>a+slots[pos].reduce((b,sl)=>b+sl.length,0),0);
 
-  const startPress = (pid) => {
+  const startPress = (e, pid) => {
     if(!canDrag) return;
-    pressRef.current = setTimeout(()=>{ setDragPid(pid); }, 350);
+    const x=e.clientX, y=e.clientY;
+    pressRef.current = setTimeout(()=>{
+      setDragPid(pid);
+      setDragPos({x,y});
+      if(navigator.vibrate) navigator.vibrate(30);
+    }, 350);
   };
   const cancelPress = () => { if(pressRef.current){ clearTimeout(pressRef.current); pressRef.current=null; } };
   const handleUp = (e) => {
@@ -250,6 +275,7 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
       justDraggedRef.current = true;
       setTimeout(()=>{ justDraggedRef.current=false; }, 100);
       setDragPid(null);
+      setHoverKey(null);
     }
   };
 
@@ -272,9 +298,10 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
                   onPointerUp={handleUp}
                   style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
                     borderRadius:7,padding:"5px 8px",minWidth:44,minHeight:48,
-                    border:"1.5px dashed rgba(255,255,255,0.3)",
+                    border:hoverKey===slotKey?"2px solid #fbbf24":"1.5px dashed rgba(255,255,255,0.3)",
                     userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
-                    background:dragPid!==null?"rgba(255,255,255,0.1)":"transparent" }}>
+                    transition:"background 0.1s",
+                    background:hoverKey===slotKey?"rgba(251,191,36,0.35)":dragPid!==null?"rgba(255,255,255,0.12)":"transparent" }}>
                   <div style={{ fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700 }}>{label}</div>
                 </div>
               );
@@ -287,19 +314,19 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
               <div key={slotKey}
                 data-slotkey={slotKey}
                 onClick={()=>{ if(justDraggedRef.current) return; hasMore&&onRotate&&onRotate(rotKey); }}
-                onPointerDown={()=>startPress(cur.id)}
+                onPointerDown={(e)=>startPress(e,cur.id)}
                 onPointerUp={handleUp}
                 onPointerCancel={cancelPress}
                 style={{ display:"flex",flexDirection:"column",alignItems:"center",
-                  background:isDragging?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.13)",
+                  background:hoverKey===slotKey&&dragPid!==null&&!isDragging?"rgba(251,191,36,0.35)":"rgba(255,255,255,0.13)",
                   borderRadius:7,padding:"5px 8px",minWidth:44,
                   position:"relative",cursor:hasMore?"pointer":canDrag?"grab":"default",
-                  border:isDragging?"2px solid #fbbf24":hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
-                  transform:isDragging?"scale(1.15)":"none",
-                  transition:"transform 0.15s",
+                  border:hoverKey===slotKey&&dragPid!==null&&!isDragging?"2px solid #fbbf24":hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
+                  opacity:isDragging?0.3:1,
+                  transition:"opacity 0.15s, background 0.1s",
                   touchAction:canDrag?"none":"auto",
                   userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
-                  zIndex:isDragging?10:1 }}>
+                  zIndex:1 }}>
                 {hasMore&&(
                   <div style={{ position:"absolute",top:-6,right:-6,background:"#f59e0b",color:"#fff",
                     fontSize:8,fontWeight:800,borderRadius:10,padding:"1px 5px" }}>+{slot.length-1}</div>
@@ -339,6 +366,28 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
           </div>
         )}
       </div>
+      {/* ドラッグ中: 指に追従するゴースト */}
+      {dragPid!==null&&(()=>{
+        const loc=locate(dragPid);
+        if(!loc) return null;
+        const p=slots[loc[0]][loc[1]].find(pl=>pl.id===dragPid);
+        if(!p) return null;
+        return (
+          <div style={{ position:"fixed",left:dragPos.x-26,top:dragPos.y-58,zIndex:1000,
+            pointerEvents:"none",transform:"scale(1.25)",
+            display:"flex",flexDirection:"column",alignItems:"center",
+            background:"rgba(15,23,42,0.85)",borderRadius:9,padding:"6px 9px",
+            boxShadow:"0 8px 24px rgba(0,0,0,0.45)",
+            border:"2px solid #fbbf24" }}>
+            <div style={{ width:28,height:28,borderRadius:"50%",
+              background:accentColor||POS_COLOR[p.pos1]||"#64748b",
+              display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:12 }}>
+              {p.number}
+            </div>
+            <div style={{ fontSize:9,color:"#fff",marginTop:2 }}>{p.name.split(" ")[0]}</div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
