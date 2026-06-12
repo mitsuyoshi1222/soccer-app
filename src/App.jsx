@@ -413,11 +413,24 @@ export default function App() {
     if(m.data) setMembers(m.data.map(r=>({id:r.id,name:r.name,number:r.number,
       pos1:r.pos1||"",pos2:r.pos2||"",pos3:r.pos3||"",
       side1:r.side1||"",side2:r.side2||"",side3:r.side3||""})));
-    if(e.data) setEvents(e.data.map(r=>({id:r.id,type:r.type,title:r.title,date:r.date,
-      timeFrom:r.time_from||"",timeTo:r.time_to||"",meetTime:r.meet_time||"",
-      place:r.place||"",mapUrl:r.map_url||"",note:r.note||"",
-      playerCount:r.player_count||11,deadline:r.deadline||"",deadlineTime:r.deadline_time||"",
-      uniform:r.uniform||""})));
+    if(e.data){
+      setEvents(e.data.map(r=>({id:r.id,type:r.type,title:r.title,date:r.date,
+        timeFrom:r.time_from||"",timeTo:r.time_to||"",meetTime:r.meet_time||"",
+        place:r.place||"",mapUrl:r.map_url||"",note:r.note||"",
+        playerCount:r.player_count||11,deadline:r.deadline||"",deadlineTime:r.deadline_time||"",
+        uniform:r.uniform||"",formation:r.formation||""})));
+      // 管理者が保存した配置（手動移動）を復元
+      const fs={};
+      e.data.forEach(r=>{
+        if(r.field_moves){
+          try{
+            const obj=JSON.parse(r.field_moves);
+            Object.entries(obj).forEach(([k,v])=>{ fs[`${r.id}|${k}`]=v; });
+          }catch(err){}
+        }
+      });
+      setFieldSwaps(fs);
+    }
     if(a.data){
       const att={};
       a.data.forEach(r=>{
@@ -457,11 +470,31 @@ export default function App() {
 
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [formationEvId, setFormationEvId] = useState(1);
-  const [formationKey, setFormationKey] = useState("4-3-3");
   const [slotRot, setSlotRot] = useState({});
   const rotateSlot = (key) => setSlotRot(p=>({...p,[key]:(p[key]||0)+1}));
   const [fieldSwaps, setFieldSwaps] = useState({});
-  const addSwap = (key,a,b) => setFieldSwaps(p=>({...p,[key]:[...(p[key]||[]),[a,b]]}));
+  const [formationSel, setFormationSel] = useState({});
+  const persistMoves = (evId, all) => {
+    // 管理者の配置のみDBに保存
+    if(currentUser!=="manager") return;
+    const obj={};
+    Object.entries(all).forEach(([k,v])=>{
+      if(k.startsWith(`${evId}|`)) obj[k.slice(`${evId}|`.length)]=v;
+    });
+    supabase.from("events").update({field_moves:JSON.stringify(obj)}).eq("id",evId);
+  };
+  const addSwap = (key,a,b) => setFieldSwaps(p=>{
+    const next={...p,[key]:[...(p[key]||[]),[a,b]]};
+    persistMoves(parseInt(key.split("|")[0]), next);
+    return next;
+  });
+  const selectFormation = (evId,k) => {
+    setFormationSel(p=>({...p,[evId]:k}));
+    if(currentUser==="manager"){
+      setEvents(p=>p.map(e=>e.id===evId?{...e,formation:k}:e));
+      supabase.from("events").update({formation:k}).eq("id",evId);
+    }
+  };
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [editEventId, setEditEventId] = useState(null);
@@ -1029,7 +1062,10 @@ export default function App() {
     const is紅白=ev.type==="紅白戦";
     const targetCount = ev.playerCount<=8?8:ev.playerCount;
     const availF=Object.entries(FORMATIONS).filter(([,f])=>f.min===targetCount);
-    const fKey=availF.find(([k])=>k===formationKey)?formationKey:availF[0]?.[0]||"4-3-3";
+    const pickable=(k)=>k&&availF.some(([kk])=>kk===k);
+    const fKey = pickable(formationSel[ev.id]) ? formationSel[ev.id]
+               : pickable(ev.formation) ? ev.formation
+               : availF[0]?.[0]||"4-3-3";
     return (
       <div style={S.body}>
         <div style={{fontSize:15,fontWeight:700,marginBottom:10}}>布陣</div>
@@ -1040,10 +1076,10 @@ export default function App() {
           </select>
         </div>
         <div style={S.card}>
-          <label style={S.lbl}>フォーメーション</label>
+          <label style={S.lbl}>フォーメーション{!isManager&&<span style={{color:"#94a3b8",fontWeight:400}}>（お試し変更可・保存は管理者のみ）</span>}</label>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {availF.map(([k,f])=>(
-              <button key={k} onClick={()=>setFormationKey(k)}
+              <button key={k} onClick={()=>selectFormation(ev.id,k)}
                 style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:fKey===k?700:500,cursor:"pointer",
                   background:fKey===k?"#1e3a5f":"#f1f5f9",color:fKey===k?"#fff":"#475569",border:"none"}}>
                 {f.label}
@@ -1073,6 +1109,7 @@ export default function App() {
             onClick={()=>setFieldSwaps(p=>{
               const u={...p};
               Object.keys(u).forEach(k=>{ if(k.startsWith(`${ev.id}|${fKey}|`)) delete u[k]; });
+              persistMoves(ev.id, u);
               return u;
             })}>
             ↩️ 配置を自動配置に戻す
