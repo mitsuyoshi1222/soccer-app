@@ -172,6 +172,34 @@ function splitTeams(players) {
   return { red, white };
 }
 
+// 時間選択（時・分を別スクロール、タッチで12:00から開始）
+function TimeSelect({ value, onChange, minuteStep=10, accent=false }) {
+  const [h,m] = value ? value.split(":") : ["",""];
+  const selStyle = {
+    flex:1, border:`1.5px solid ${accent?"#f59e0b":"#e2e8f0"}`, borderRadius:8,
+    padding:"9px 6px", fontSize:15, outline:"none", boxSizing:"border-box",
+    background:accent?"#fffbeb":"#fff", textAlign:"center", textAlignLast:"center"
+  };
+  const hours = Array.from({length:24},(_,i)=>i.toString().padStart(2,"0"));
+  const minutes = Array.from({length:60/minuteStep},(_,i)=>(i*minuteStep).toString().padStart(2,"0"));
+  const focusInit = () => { if(!value) onChange("12:00"); };
+  return (
+    <div style={{display:"flex",gap:4,alignItems:"center"}}>
+      <select style={selStyle} value={h} onFocus={focusInit}
+        onChange={e=>onChange(e.target.value===""?"":`${e.target.value}:${m||"00"}`)}>
+        <option value="">--</option>
+        {hours.map(hh=><option key={hh} value={hh}>{hh}</option>)}
+      </select>
+      <span style={{fontWeight:700,color:"#64748b"}}>:</span>
+      <select style={selStyle} value={m} onFocus={focusInit}
+        onChange={e=>onChange(`${h||"12"}:${e.target.value||"00"}`)}>
+        <option value="">--</option>
+        {minutes.map(mm=><option key={mm} value={mm}>{mm}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotRot={}, onRotate, canDrag=false, moves=[], onMove }) {
   const [dragPid, setDragPid] = useState(null);
   const pressRef = useRef(null);
@@ -245,6 +273,7 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
                   style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
                     borderRadius:7,padding:"5px 8px",minWidth:44,minHeight:48,
                     border:"1.5px dashed rgba(255,255,255,0.3)",
+                    userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
                     background:dragPid!==null?"rgba(255,255,255,0.1)":"transparent" }}>
                   <div style={{ fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700 }}>{label}</div>
                 </div>
@@ -269,6 +298,7 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
                   transform:isDragging?"scale(1.15)":"none",
                   transition:"transform 0.15s",
                   touchAction:canDrag?"none":"auto",
+                  userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
                   zIndex:isDragging?10:1 }}>
                 {hasMore&&(
                   <div style={{ position:"absolute",top:-6,right:-6,background:"#f59e0b",color:"#fff",
@@ -292,7 +322,8 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
   return (
     <div style={{ background:accentColor?`linear-gradient(180deg,${accentColor}22 0%,#15803d 100%)`
       :"linear-gradient(180deg,#166534 0%,#15803d 50%,#16a34a 100%)",
-      borderRadius:12,padding:"12px 8px",position:"relative",overflow:"hidden" }}>
+      borderRadius:12,padding:"12px 8px",position:"relative",overflow:"hidden",
+      userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none" }}>
       <div style={{ position:"absolute",inset:8,border:"1.5px solid rgba(255,255,255,0.18)",borderRadius:6,pointerEvents:"none" }} />
       <div style={{ position:"absolute",top:"50%",left:8,right:8,height:1,background:"rgba(255,255,255,0.12)",pointerEvents:"none" }} />
       <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
@@ -1186,30 +1217,46 @@ export default function App() {
             </div>
             <div style={{marginBottom:10}}>
               <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
-              <select style={S.sel} value={newEvent.meetTime} onChange={e=>setNE(p=>({...p,meetTime:e.target.value}))}>
-                <option value="">--:--</option>
-                {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
-              </select>
+              <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
             </div>
             <div style={S.row}>
               <div style={{flex:1}}>
                 <label style={S.lbl}>開始時間</label>
-                <select style={S.sel} value={newEvent.timeFrom} onChange={e=>setNE(p=>({...p,timeFrom:e.target.value}))}>
-                  <option value="">--:--</option>
-                  {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
-                </select>
+                <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>({...p,timeFrom:v}))}/>
               </div>
               <div style={{flex:1}}>
                 <label style={S.lbl}>終了時間</label>
-                <select style={S.sel} value={newEvent.timeTo} onChange={e=>setNE(p=>({...p,timeTo:e.target.value}))}>
-                  <option value="">--:--</option>
-                  {Array.from({length:144},(_,i)=>{const h=Math.floor(i/6).toString().padStart(2,"0"),m=(i%6*10).toString().padStart(2,"0");return <option key={i} value={`${h}:${m}`}>{`${h}:${m}`}</option>;})}
-                </select>
+                <TimeSelect value={newEvent.timeTo} onChange={v=>setNE(p=>({...p,timeTo:v}))}/>
               </div>
             </div>
             <div style={{marginBottom:10}}>
               <label style={S.lbl}>場所</label>
               <input style={S.inp} placeholder="例: 代々木公園グラウンド" value={newEvent.place} onChange={e=>setNE(p=>({...p,place:e.target.value}))}/>
+              {(()=>{
+                // 過去に入力した場所の履歴（新しい順・重複なし）
+                const seen=new Set();
+                const history=[...events].reverse()
+                  .filter(e=>e.place&&!seen.has(e.place)&&(seen.add(e.place),true))
+                  .slice(0,8);
+                if(!history.length) return null;
+                return (
+                  <div style={{marginTop:6}}>
+                    <div style={{fontSize:10,color:"#94a3b8",marginBottom:4}}>📌 履歴からえらぶ</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {history.map(h=>(
+                        <button key={h.id} type="button"
+                          onClick={()=>setNE(p=>({...p,place:h.place,mapUrl:h.mapUrl||""}))}
+                          style={{background:newEvent.place===h.place?"#eff6ff":"#f8fafc",
+                            border:`1.5px solid ${newEvent.place===h.place?"#3b82f6":"#e2e8f0"}`,
+                            borderRadius:20,padding:"5px 12px",fontSize:12,cursor:"pointer",
+                            color:"#475569",fontWeight:newEvent.place===h.place?700:400}}>
+                          📍 {h.place}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               {newEvent.place&&(
                 <a href={newEvent.mapUrl||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(newEvent.place)}`}
                   target="_blank" rel="noopener noreferrer"
@@ -1232,10 +1279,7 @@ export default function App() {
                   <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb"}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
                 </div>
                 <div style={{flex:1}}>
-                  <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb"}} value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
-                    <option value="">時間指定なし</option>
-                    {Array.from({length:24},(_,i)=>{const h=i.toString().padStart(2,"0");return <option key={i} value={`${h}:00`}>{`${h}:00`}</option>;})}
-                  </select>
+                  <TimeSelect value={newEvent.deadlineTime} onChange={v=>setNE(p=>({...p,deadlineTime:v}))} minuteStep={60} accent/>
                 </div>
               </div>
             </div>
