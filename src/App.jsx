@@ -450,6 +450,12 @@ export default function App() {
 
   useEffect(()=>{
     loadAll();
+    // 前回のログインを復元
+    const saved=localStorage.getItem("teamapp_user");
+    if(saved){
+      setCurrentUser(saved==="manager"?"manager":parseInt(saved));
+      setShowLogin(false);
+    }
     const onFocus=()=>loadAll();
     window.addEventListener("focus",onFocus);
     return ()=>window.removeEventListener("focus",onFocus);
@@ -517,6 +523,30 @@ export default function App() {
   const [posData,   setPD] = useState(blankPos);
 
   const isManager = currentUser === "manager";
+  const TABS = [
+    {key:"schedule",label:"📅 日程"},
+    {key:"announcements",label:"📢 お知らせ"},
+    {key:"formation",label:"⚽ フォーメーション"},
+    {key:"members",label:"👥 メンバー"},
+  ];
+  const swipeRef = useRef({x:0,y:0,active:false});
+  const onSwipeStart = (e) => {
+    // フォーメーションのドラッグ操作中はスワイプ無効
+    if(e.target.closest&&e.target.closest("[data-slotkey]")){ swipeRef.current.active=false; return; }
+    const t=e.touches[0];
+    swipeRef.current={x:t.clientX,y:t.clientY,active:true};
+  };
+  const onSwipeEnd = (e) => {
+    if(!swipeRef.current.active) return;
+    const t=e.changedTouches[0];
+    const dx=t.clientX-swipeRef.current.x;
+    const dy=t.clientY-swipeRef.current.y;
+    swipeRef.current.active=false;
+    if(Math.abs(dx)<70||Math.abs(dy)>60) return;
+    const idx=TABS.findIndex(tb=>tb.key===tab);
+    if(dx<0&&idx<TABS.length-1) setTab(TABS[idx+1].key);
+    if(dx>0&&idx>0) setTab(TABS[idx-1].key);
+  };
   const todayStr = new Date().toISOString().slice(0,10);
   const sortedEvents = [...events]
     .filter(ev => ev.date >= todayStr)
@@ -642,7 +672,10 @@ export default function App() {
     hdr:  {background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)",color:"#fff",padding:"14px 16px 0",position:"sticky",top:0,zIndex:100},
     hdrTop:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12},
     tabs: {display:"flex"},
-    tab:a=>({flex:1,padding:"9px 2px",textAlign:"center",fontSize:11,fontWeight:a?700:500,color:a?"#fff":"#94a3b8",background:"none",border:"none",borderBottom:a?"2.5px solid #38bdf8":"2px solid transparent",cursor:"pointer"}),
+    tab:a=>({flex:1,padding:"8px 2px",textAlign:"center",fontSize:11,fontWeight:a?800:600,
+      color:a?"#0f172a":"#cbd5e1",background:a?"#fff":"rgba(255,255,255,0.08)",
+      border:"none",borderRadius:8,cursor:"pointer",transition:"all 0.15s",
+      boxShadow:a?"0 2px 6px rgba(0,0,0,0.25)":"none"}),
     body: {padding:"14px",paddingBottom:32},
     card: {background:"#fff",borderRadius:12,padding:"12px 14px",marginBottom:10,boxShadow:"0 1px 3px rgba(0,0,0,0.07)"},
     badge:t=>({display:"inline-block",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,marginRight:5,
@@ -672,7 +705,7 @@ export default function App() {
         <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:8}}>▼ 管理者としてログイン</div>
         {admins.map((name,i)=>(
           <div key={i} style={{...S.card,cursor:"pointer",borderLeft:"4px solid #f59e0b",marginBottom:8,display:"flex",alignItems:"center",gap:10}}
-            onClick={()=>{setCurrentUser("manager");setShowLogin(false);}}>
+            onClick={()=>{setCurrentUser("manager");localStorage.setItem("teamapp_user","manager");setShowLogin(false);}}>
             <span style={{fontSize:18}}>👑</span>
             <div>
               <div style={{fontWeight:700,fontSize:14}}>{name}</div>
@@ -689,6 +722,7 @@ export default function App() {
               onClick={()=>{
                 setCurrentUser(m.id);
                 if(noPos){ setPD({pos1:"",pos2:"",pos3:"",side1:"",side2:"",side3:""}); setShowPositionPrompt(true); }
+                localStorage.setItem("teamapp_user",String(m.id));
                 setShowLogin(false);
               }}>
               <div style={{width:36,height:36,borderRadius:"50%",background:m.pos1?POS_COLOR[m.pos1]:"#94a3b8",color:"#fff",
@@ -716,7 +750,7 @@ export default function App() {
         <div style={S.mbox}>
           <div style={{fontSize:16,fontWeight:800,marginBottom:4}}>⚽ ポジションを入力してください</div>
           <div style={{fontSize:13,color:"#64748b",marginBottom:16}}>
-            あなたのポジション適性を登録しましょう。布陣の自動作成に使われます。
+            あなたのポジション適性を登録しましょう。フォーメーションの自動作成に使われます。
           </div>
           {[["pos1","side1","第1（必須）"],["pos2","side2","第2"],["pos3","side3","第3"]].map(([pKey,sKey,label])=>(
             <div key={pKey} style={{marginBottom:12,padding:"10px 12px",background:"#f8fafc",borderRadius:10}}>
@@ -922,24 +956,40 @@ export default function App() {
         return (
           <div key={ev.id} style={{...S.card,borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":"#22c55e"}`,cursor:"pointer"}}
             onClick={()=>setSelectedEventId(open?null:ev.id)}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-              <div>
-                <span style={S.badge(ev.type)}>{ev.type==="match"?"試合":ev.type==="紅白戦"?"紅白戦":"練習"}</span>
-                <span style={{fontSize:15,fontWeight:700}}>{ev.title}</span>
+            <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+              {/* 日付ボックス */}
+              {(()=>{
+                const d=new Date(ev.date+"T00:00:00");
+                const wd=["日","月","火","水","木","金","土"][d.getDay()];
+                const isSun=d.getDay()===0, isSat=d.getDay()===6;
+                return (
+                  <div style={{flexShrink:0,width:56,textAlign:"center",background:"#f8fafc",
+                    border:"1.5px solid #e2e8f0",borderRadius:10,padding:"6px 4px"}}>
+                    <div style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{parseInt(ev.date.slice(5,7))}月</div>
+                    <div style={{fontSize:22,fontWeight:800,color:"#0f172a",lineHeight:1.1}}>{parseInt(ev.date.slice(8,10))}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:isSun?"#dc2626":isSat?"#2563eb":"#64748b"}}>（{wd}）</div>
+                  </div>
+                );
+              })()}
+              {/* タイトル・時間・場所 */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{marginBottom:3}}>
+                  <span style={S.badge(ev.type)}>{ev.type==="match"?"試合":ev.type==="紅白戦"?"紅白戦":"練習"}</span>
+                  <span style={{fontSize:15,fontWeight:700}}>{ev.title}</span>
+                  <span style={{fontSize:10,color:"#94a3b8",marginLeft:5}}>{ev.playerCount}人制</span>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:"#0f172a"}}>
+                  🕐 {ev.timeFrom}{ev.timeTo?`〜${ev.timeTo}`:""}
+                  {ev.meetTime&&<span style={{color:"#d97706",marginLeft:8}}>集合 {ev.meetTime}</span>}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}>
+                  <span style={{fontSize:13,fontWeight:600,color:"#475569",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {ev.place}</span>
+                  <a href={ev.mapUrl||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.place)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{flexShrink:0,fontSize:11,color:"#3b82f6",background:"#eff6ff",borderRadius:4,padding:"1px 6px",textDecoration:"none"}}
+                    onClick={e=>e.stopPropagation()}>地図</a>
+                </div>
               </div>
-              <div style={{fontSize:12,color:"#64748b",textAlign:"right"}}>
-                {ev.date.slice(5).replace("-","/")}
-                {ev.meetTime&&<div style={{fontSize:11,color:"#d97706",fontWeight:700}}>集合 {ev.meetTime}</div>}
-                <div style={{fontSize:11,color:"#94a3b8"}}>{ev.timeFrom}{ev.timeTo?`〜${ev.timeTo}`:""}</div>
-                <div style={{fontSize:10,color:"#94a3b8"}}>{ev.playerCount}人制</div>
-              </div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
-              <span style={{fontSize:12,color:"#64748b"}}>📍 {ev.place}</span>
-              <a href={ev.mapUrl||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.place)}`}
-                target="_blank" rel="noopener noreferrer"
-                style={{fontSize:11,color:"#3b82f6",background:"#eff6ff",borderRadius:4,padding:"1px 6px",textDecoration:"none"}}
-                onClick={e=>e.stopPropagation()}>地図</a>
             </div>
             {ev.deadline&&(
               <div style={{marginTop:5,padding:"4px 10px",borderRadius:6,display:"inline-flex",alignItems:"center",gap:5,
@@ -973,12 +1023,19 @@ export default function App() {
             </div>
             {!isManager&&currentMember&&(()=>{
               const att=getAtt(ev.id,currentMember.id);
+              const unanswered=att.status==="未回答";
               return (
-                <div style={{marginTop:8}} onClick={e=>e.stopPropagation()}>
-                  <button style={{background:ATT_BG[att.status],border:`1.5px solid ${ATT_COLOR[att.status]}`,
-                    borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer",color:ATT_COLOR[att.status]}}
+                <div style={{marginTop:10}} onClick={e=>e.stopPropagation()}>
+                  <button style={{width:"100%",
+                    background:unanswered?"#1e3a5f":ATT_BG[att.status],
+                    border:unanswered?"none":`2px solid ${ATT_COLOR[att.status]}`,
+                    borderRadius:10,padding:"12px 14px",fontSize:14,fontWeight:800,cursor:"pointer",
+                    color:unanswered?"#fff":ATT_COLOR[att.status],
+                    boxShadow:unanswered?"0 2px 8px rgba(30,58,95,0.35)":"none"}}
                     onClick={()=>setAttModal({evId:ev.id,memberId:currentMember.id})}>
-                    {ATT_ICON[att.status]} 自分の出欠: {att.status}　（タップで変更）
+                    {unanswered
+                      ?"✋ 出欠を入力する"
+                      :`${ATT_ICON[att.status]} あなたの回答: ${att.status}（タップで変更）`}
                   </button>
                 </div>
               );
@@ -992,7 +1049,7 @@ export default function App() {
                 <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
                   <button style={{...S.btnSm,background:"#166534",flex:1}}
                     onClick={()=>{setFormationEvId(ev.id);setTab("formation");}}>
-                    ⚽ 布陣を確認
+                    ⚽ フォーメーションを確認
                   </button>
                   {isManager&&un>0&&(
                     <button style={{...S.btnSm,background:"#06C755",flex:1}} onClick={()=>setShowReminder(ev.id)}>
@@ -1068,7 +1125,7 @@ export default function App() {
                : availF[0]?.[0]||"4-3-3";
     return (
       <div style={S.body}>
-        <div style={{fontSize:15,fontWeight:700,marginBottom:10}}>布陣</div>
+        <div style={{fontSize:15,fontWeight:700,marginBottom:10}}>フォーメーション</div>
         <div style={S.card}>
           <label style={S.lbl}>イベントを選択</label>
           <select style={S.sel} value={formationEvId} onChange={e=>setFormationEvId(parseInt(e.target.value))}>
@@ -1192,21 +1249,25 @@ export default function App() {
           <div style={{display:"flex",gap:6}}>
             {isManager&&<button style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,padding:"6px 10px",color:"#94a3b8",fontSize:12,cursor:"pointer"}}
               onClick={()=>{setEditTeamName(teamName);setShowSettings(true);}}>⚙️</button>}
-            <button style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,padding:"6px 10px",color:"#94a3b8",fontSize:12,cursor:"pointer"}}
-              onClick={()=>setShowLogin(true)}>🔄</button>
+            <button style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:8,padding:"6px 10px",color:"#e2e8f0",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}
+              onClick={()=>{localStorage.removeItem("teamapp_user");setShowLogin(true);}}>
+              👤 ログイン切替
+            </button>
           </div>
         </div>
-        <div style={S.tabs}>
-          {[{key:"schedule",label:"日程"},{key:"announcements",label:"お知らせ"},{key:"formation",label:"布陣"},{key:"members",label:"メンバー"}].map(t=>(
+        <div style={{...S.tabs,gap:5,paddingBottom:10}}>
+          {TABS.map(t=>(
             <button key={t.key} style={S.tab(tab===t.key)} onClick={()=>setTab(t.key)}>{t.label}</button>
           ))}
         </div>
       </div>
 
-      {tab==="schedule"&&renderSchedule()}
-      {tab==="announcements"&&renderAnnouncements()}
-      {tab==="formation"&&renderFormation()}
-      {tab==="members"&&renderMembers()}
+      <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
+        {tab==="schedule"&&renderSchedule()}
+        {tab==="announcements"&&renderAnnouncements()}
+        {tab==="formation"&&renderFormation()}
+        {tab==="members"&&renderMembers()}
+      </div>
 
       <PositionPrompt/>
       <AttModal/>
