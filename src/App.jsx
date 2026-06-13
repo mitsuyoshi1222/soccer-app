@@ -534,44 +534,6 @@ export default function App() {
     {key:"formation",label:"⚽ フォーメーション"},
     {key:"members",label:"👥 メンバー"},
   ];
-  const swipeRef = useRef({x:0,y:0,active:false,locked:false});
-  const [swipeDX, setSwipeDX] = useState(0);
-  const [swiping, setSwiping] = useState(false);
-  const onSwipeStart = (e) => {
-    if(e.target.closest&&e.target.closest("[data-slotkey]")){ swipeRef.current.active=false; return; }
-    const t=e.touches[0];
-    swipeRef.current={x:t.clientX,y:t.clientY,active:true,locked:false};
-    setSwiping(true);
-  };
-  const onSwipeMove = (e) => {
-    if(!swipeRef.current.active) return;
-    const t=e.touches[0];
-    const dx=t.clientX-swipeRef.current.x;
-    const dy=t.clientY-swipeRef.current.y;
-    if(!swipeRef.current.locked){
-      // 縦移動が優勢ならスワイプ中止（スクロール優先）
-      if(Math.abs(dy)>Math.abs(dx)){ if(Math.abs(dy)>8){ swipeRef.current.active=false; setSwiping(false); setSwipeDX(0);} return; }
-      // 横移動が25px超えて初めてスワイプ確定
-      if(Math.abs(dx)>25){ swipeRef.current.locked=true; }
-      else return;
-    }
-    const idx=TABS.findIndex(tb=>tb.key===tab);
-    let d=dx;
-    if((idx===0&&dx>0)||(idx===TABS.length-1&&dx<0)) d=dx*0.3;
-    setSwipeDX(d);
-  };
-  const onSwipeEnd = () => {
-    const wasLocked=swipeRef.current.locked;
-    setSwiping(false);
-    swipeRef.current.active=false;
-    swipeRef.current.locked=false;
-    if(!wasLocked){ setSwipeDX(0); return; }
-    const dx=swipeDX;
-    setSwipeDX(0);
-    const idx=TABS.findIndex(tb=>tb.key===tab);
-    if(dx<-70&&idx<TABS.length-1) setTab(TABS[idx+1].key);
-    else if(dx>70&&idx>0) setTab(TABS[idx-1].key);
-  };
   const todayStr = new Date().toISOString().slice(0,10);
   const weekEndStr = (()=>{ const d=new Date(); const diff=7-d.getDay(); d.setDate(d.getDate()+diff); return d.toISOString().slice(0,10); })();
   const isToday = (ev)=>ev.date===todayStr;
@@ -1364,8 +1326,7 @@ export default function App() {
         </div>
       </div>
 
-      <div onTouchStart={onSwipeStart} onTouchMove={onSwipeMove} onTouchEnd={onSwipeEnd}
-        style={swipeDX!==0?{transform:`translateX(${swipeDX}px)`,transition:swiping?"none":"transform 0.25s ease-out"}:undefined}>
+      <div>
         {tab==="schedule"&&renderSchedule()}
         {tab==="formation"&&renderFormation()}
         {tab==="members"&&renderMembers()}
