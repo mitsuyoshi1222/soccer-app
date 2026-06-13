@@ -906,6 +906,26 @@ export default function App() {
   const purgeEvent = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashEvents(p=>p.filter(x=>x.id!==id)); await supabase.from("events").delete().eq("id",id); };
   const purgeMember = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashMembers(p=>p.filter(x=>x.id!==id)); await supabase.from("members").delete().eq("id",id); };
   const purgeAnn = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashAnns(p=>p.filter(x=>x.id!==id)); await supabase.from("announcements").delete().eq("id",id); };
+  const typeLabel = (t)=> t==="match"?"試合":t==="紅白戦"?"紅白戦":t==="助っ人"?"助っ人募集":"練習";
+  // 簡潔なLINE告知文（予定作成・周知用）
+  const announceText = (ev) => {
+    if(!ev) return "";
+    const d=new Date(ev.date+"T00:00:00");
+    const wd=["日","月","火","水","木","金","土"][d.getDay()];
+    const md=`${parseInt(ev.date.slice(5,7))}/${parseInt(ev.date.slice(8,10))}(${wd})`;
+    const time=ev.timeFrom?`${ev.timeFrom}${ev.timeTo?`〜${ev.timeTo}`:""}`:"";
+    const lines=[];
+    lines.push(`【${typeLabel(ev.type)}】${ev.title}`);
+    lines.push(`📅 ${md}${time?` ${time}`:""}`);
+    if(ev.meetTime) lines.push(`🕐 集合 ${ev.meetTime}`);
+    if(ev.place) lines.push(`📍 ${ev.place}`);
+    if(ev.uniform) lines.push(`👕 ${ev.uniform.split(",").join("・")}`);
+    if(ev.deadline) lines.push(`⏰ 回答期限 ${parseInt(ev.deadline.slice(5,7))}/${parseInt(ev.deadline.slice(8,10))}${ev.deadlineTime?` ${ev.deadlineTime}`:""}`);
+    lines.push("");
+    lines.push("▼出欠はこちら");
+    lines.push(window.location.origin);
+    return lines.join("\n");
+  };
   const reminderText = evId => {
     const ev=events.find(e=>e.id===evId);
     const unans=getByStatus(evId,"未回答");
@@ -937,8 +957,8 @@ export default function App() {
     body: {padding:"14px",paddingBottom:32},
     card: {background:"#fff",borderRadius:12,padding:"12px 14px",marginBottom:10,boxShadow:"0 1px 3px rgba(0,0,0,0.07)"},
     badge:t=>({display:"inline-block",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,marginRight:5,
-      background:t==="match"?"#dbeafe":t==="紅白戦"?"#fce7f3":"#dcfce7",
-      color:t==="match"?"#1d4ed8":t==="紅白戦"?"#be185d":"#15803d"}),
+      background:t==="match"?"#dbeafe":t==="紅白戦"?"#fce7f3":t==="助っ人"?"#ffedd5":"#dcfce7",
+      color:t==="match"?"#1d4ed8":t==="紅白戦"?"#be185d":t==="助っ人"?"#c2410c":"#15803d"}),
     btn:     {background:"#1e3a5f",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontSize:13,fontWeight:700,cursor:"pointer",touchAction:"manipulation"},
     btnSm:   {background:"#1e3a5f",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer",touchAction:"manipulation"},
     btnGhost:{background:"none",border:"1.5px solid #e2e8f0",color:"#475569",borderRadius:6,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer"},
@@ -1242,7 +1262,7 @@ export default function App() {
         const needAnswer=myStatus==="未回答";
         return (
           <div key={ev.id} id={`ev-card-${ev.id}`} style={{...S.card,
-            borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":"#22c55e"}`,
+            borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":ev.type==="助っ人"?"#f97316":"#22c55e"}`,
             cursor:"pointer",position:"relative",scrollMarginTop:"110px",touchAction:"manipulation",
             ...(today?{boxShadow:"0 0 0 2px #ef4444, 0 1px 3px rgba(0,0,0,0.07)"}:
                 needAnswer?{boxShadow:"0 0 0 2px #fbbf24, 0 1px 3px rgba(0,0,0,0.07)"}:{})}}
@@ -1281,7 +1301,7 @@ export default function App() {
               {/* タイトル・時間・場所 */}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{marginBottom:3}}>
-                  <span style={S.badge(ev.type)}>{ev.type==="match"?"試合":ev.type==="紅白戦"?"紅白戦":"練習"}</span>
+                  <span style={S.badge(ev.type)}>{typeLabel(ev.type)}</span>
                   <span style={{fontSize:15,fontWeight:700}}>{ev.title}</span>
                   <span style={{fontSize:10,color:"#94a3b8",marginLeft:5}}>{ev.playerCount}人制</span>
                 </div>
@@ -1359,8 +1379,11 @@ export default function App() {
                     ⚽ フォーメーションを確認
                   </button>
                   {isManager&&un>0&&(
+                    <button style={{...S.btnSm,background:"#06C755",flex:1}} onClick={()=>handleCopy(announceText(ev))}>
+                      📢 告知文コピー
+                    </button>
                     <button style={{...S.btnSm,background:"#06C755",flex:1}} onClick={()=>setShowReminder(ev.id)}>
-                      💬 LINEリマインド
+                      💬 リマインド
                     </button>
                   )}
                 </div>
@@ -1765,7 +1788,7 @@ export default function App() {
               <div style={{flex:1}}>
                 <label style={reqLbl}>種別 *</label>
                 <select style={reqStyle(newEvent.type)} value={newEvent.type} onChange={e=>setNE(p=>({...p,type:e.target.value}))}>
-                  <option value="match">試合</option><option value="practice">練習</option><option value="紅白戦">紅白戦</option>
+                  <option value="match">試合</option><option value="practice">練習</option><option value="紅白戦">紅白戦</option><option value="助っ人">助っ人募集</option>
                 </select>
               </div>
               <div style={{flex:2}}>
@@ -1970,7 +1993,7 @@ export default function App() {
                   return (
                     <div key={ev.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
                       <div>
-                        <span style={S.badge(ev.type)}>{ev.type==="match"?"試合":ev.type==="紅白戦"?"紅白戦":"練習"}</span>
+                        <span style={S.badge(ev.type)}>{typeLabel(ev.type)}</span>
                         <span style={{fontSize:13}}>{ev.title}</span>
                       </div>
                       <div style={{textAlign:"right"}}>
