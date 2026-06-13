@@ -549,26 +549,28 @@ export default function App() {
     const dx=t.clientX-swipeRef.current.x;
     const dy=t.clientY-swipeRef.current.y;
     if(!swipeRef.current.locked){
-      if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>10){ swipeRef.current.active=false; setSwiping(false); setSwipeDX(0); return; }
-      if(Math.abs(dx)>10) swipeRef.current.locked=true;
+      // 縦移動が優勢ならスワイプ中止（スクロール優先）
+      if(Math.abs(dy)>Math.abs(dx)){ if(Math.abs(dy)>8){ swipeRef.current.active=false; setSwiping(false); setSwipeDX(0);} return; }
+      // 横移動が25px超えて初めてスワイプ確定
+      if(Math.abs(dx)>25){ swipeRef.current.locked=true; }
+      else return;
     }
-    if(swipeRef.current.locked){
-      const idx=TABS.findIndex(tb=>tb.key===tab);
-      // 端では抵抗
-      let d=dx;
-      if((idx===0&&dx>0)||(idx===TABS.length-1&&dx<0)) d=dx*0.3;
-      setSwipeDX(d);
-    }
+    const idx=TABS.findIndex(tb=>tb.key===tab);
+    let d=dx;
+    if((idx===0&&dx>0)||(idx===TABS.length-1&&dx<0)) d=dx*0.3;
+    setSwipeDX(d);
   };
   const onSwipeEnd = () => {
+    const wasLocked=swipeRef.current.locked;
     setSwiping(false);
-    if(!swipeRef.current.active){ setSwipeDX(0); return; }
     swipeRef.current.active=false;
+    swipeRef.current.locked=false;
+    if(!wasLocked){ setSwipeDX(0); return; }
     const dx=swipeDX;
     setSwipeDX(0);
     const idx=TABS.findIndex(tb=>tb.key===tab);
-    if(dx<-60&&idx<TABS.length-1) setTab(TABS[idx+1].key);
-    else if(dx>60&&idx>0) setTab(TABS[idx-1].key);
+    if(dx<-70&&idx<TABS.length-1) setTab(TABS[idx+1].key);
+    else if(dx>70&&idx>0) setTab(TABS[idx-1].key);
   };
   const todayStr = new Date().toISOString().slice(0,10);
   const weekEndStr = (()=>{ const d=new Date(); const diff=7-d.getDay(); d.setDate(d.getDate()+diff); return d.toISOString().slice(0,10); })();
@@ -1027,12 +1029,20 @@ export default function App() {
         const myStatus=!isManager&&currentUser?(attendance[ev.id]?.[currentUser]?.status||"未回答"):null;
         const needAnswer=myStatus==="未回答";
         return (
-          <div key={ev.id} style={{...S.card,
+          <div key={ev.id} id={`ev-card-${ev.id}`} style={{...S.card,
             borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":"#22c55e"}`,
-            cursor:"pointer",position:"relative",
+            cursor:"pointer",position:"relative",scrollMarginTop:"110px",
             ...(today?{boxShadow:"0 0 0 2px #ef4444, 0 1px 3px rgba(0,0,0,0.07)"}:
                 needAnswer?{boxShadow:"0 0 0 2px #fbbf24, 0 1px 3px rgba(0,0,0,0.07)"}:{})}}
-            onClick={()=>setSelectedEventId(open?null:ev.id)}>
+            onClick={()=>{
+              if(open){
+                // 解除時: そのカードを画面上部へ
+                setSelectedEventId(null);
+                setTimeout(()=>{document.getElementById(`ev-card-${ev.id}`)?.scrollIntoView({behavior:"smooth",block:"start"});},50);
+              } else {
+                setSelectedEventId(ev.id);
+              }
+            }}>
             {/* 今日/今週/未回答リボン */}
             {(today||thisWeek||needAnswer)&&(
               <div style={{display:"flex",gap:5,marginBottom:8,flexWrap:"wrap"}}>
@@ -1355,7 +1365,7 @@ export default function App() {
       </div>
 
       <div onTouchStart={onSwipeStart} onTouchMove={onSwipeMove} onTouchEnd={onSwipeEnd}
-        style={{transform:`translateX(${swipeDX}px)`,transition:swiping?"none":"transform 0.25s ease-out"}}>
+        style={swipeDX!==0?{transform:`translateX(${swipeDX}px)`,transition:swiping?"none":"transform 0.25s ease-out"}:undefined}>
         {tab==="schedule"&&renderSchedule()}
         {tab==="formation"&&renderFormation()}
         {tab==="members"&&renderMembers()}
@@ -1457,15 +1467,13 @@ export default function App() {
                 <input style={reqStyle(newEvent.title)} placeholder="例: vs FC東京" value={newEvent.title} onChange={e=>setNE(p=>({...p,title:e.target.value}))}/>
               </div>
             </div>
-            <div style={S.row}>
-              <div style={{flex:1.2}}>
-                <label style={reqLbl}>日付 *</label>
-                <input style={reqStyle(newEvent.date)} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
-              </div>
-              <div style={{flex:1}}>
-                <label style={{...S.lbl,color:"#d97706"}}>🕐 集合</label>
-                <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
-              </div>
+            <div style={{marginBottom:10}}>
+              <label style={reqLbl}>日付 *</label>
+              <input style={reqStyle(newEvent.date)} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
+              <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
             </div>
             <div style={S.row}>
               <div style={{flex:1}}>
