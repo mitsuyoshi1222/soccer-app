@@ -500,7 +500,7 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
     }
   };
 
-  const Team = ({ team, slots, color, label }) => {
+  const renderTeam = (team, slots, color, label) => {
     const total=["GK","DF","MF","FW"].reduce((a,pos)=>a+slots[pos].reduce((b,sl)=>b+sl.length,0),0);
     return (
       <div style={{ background:`linear-gradient(180deg,${color}22 0%,#15803d 100%)`,
@@ -564,9 +564,9 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
 
   return (
     <div>
-      <Team team="red" slots={redSlots} color="#dc2626" label="🔴 紅チーム"/>
+      {renderTeam("red", redSlots, "#dc2626", "🔴 紅チーム")}
       <div style={{height:10}}/>
-      <Team team="white" slots={whiteSlots} color="#475569" label="⚪ 白チーム"/>
+      {renderTeam("white", whiteSlots, "#475569", "⚪ 白チーム")}
       {canDrag&&<div style={{fontSize:10,color:"#94a3b8",textAlign:"center",marginTop:8}}>選手を長押し→枠で離すと配置変更／相手チームの枠で離すとチーム移動</div>}
       {dragPid!==null&&allById[dragPid]&&(
         <div ref={ghostRef} style={{position:"fixed",left:-999,top:-999,zIndex:1000,pointerEvents:"none",transform:"scale(1.25)",willChange:"left,top",
