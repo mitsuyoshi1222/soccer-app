@@ -740,7 +740,7 @@ export default function App() {
         <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:8}}>▼ 管理者としてログイン</div>
         {admins.map((name,i)=>(
           <div key={i} style={{...S.card,cursor:"pointer",borderLeft:"4px solid #f59e0b",marginBottom:8,display:"flex",alignItems:"center",gap:10}}
-            onClick={()=>{setCurrentUser("manager");localStorage.setItem("teamapp_user","manager");setShowLogin(false);}}>
+            onClick={()=>{setCurrentUser("manager");localStorage.setItem("teamapp_user","manager");setShowLogin(false);setTab("schedule");setSelectedEventId(null);setTimeout(()=>window.scrollTo({top:0}),0);}}>
             <span style={{fontSize:18}}>👑</span>
             <div>
               <div style={{fontWeight:700,fontSize:14}}>{name}</div>
@@ -759,6 +759,9 @@ export default function App() {
                 if(noPos){ setPD({pos1:"",pos2:"",pos3:"",side1:"",side2:"",side3:""}); setShowPositionPrompt(true); }
                 localStorage.setItem("teamapp_user",String(m.id));
                 setShowLogin(false);
+                setTab("schedule");
+                setSelectedEventId(null);
+                setTimeout(()=>window.scrollTo({top:0}),0);
               }}>
               <div style={{width:36,height:36,borderRadius:"50%",background:m.pos1?POS_COLOR[m.pos1]:"#94a3b8",color:"#fff",
                 display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:15,flexShrink:0}}>{m.number}</div>
@@ -1434,12 +1437,12 @@ export default function App() {
             </div>
             <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
               <div style={{flex:1,minWidth:0}}>
-                <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
-                <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
-              </div>
-              <div style={{flex:1,minWidth:0}}>
                 <label style={reqLbl}>日付 *</label>
                 <input style={reqStyle(newEvent.date)} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
+                <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
               </div>
             </div>
             <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
@@ -1494,18 +1497,12 @@ export default function App() {
             </div>
             <div style={{marginBottom:10}}>
               <label style={{...S.lbl,color:"#d97706"}}>⏰ 回答期限</label>
-              <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb"}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb",textAlignLast:"center"}}
-                    value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
-                    <option value="">時刻なし</option>
-                    {Array.from({length:24},(_,i)=>{const h=i.toString().padStart(2,"0");return <option key={i} value={`${h}:00`}>{`${h}:00`}</option>;})}
-                  </select>
-                </div>
-              </div>
+              <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb",marginBottom:8}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
+              <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb"}}
+                value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
+                <option value="">時刻なし</option>
+                {Array.from({length:24},(_,i)=>{const h=i.toString().padStart(2,"0");return <option key={i} value={`${h}:00`}>{`${h}:00`}</option>;})}
+              </select>
             </div>
             <div style={{marginBottom:10}}>
               <label style={S.lbl}>人数（何人制）</label>
