@@ -591,6 +591,7 @@ export default function App() {
 
   // ── Supabaseからデータ読み込み ──
   const draggingRef = useRef(false);
+  const lastLocalSaveRef = useRef(0); // 自分が保存した直後はリアルタイム反映で上書きしない
   const loadAll = async () => {
     const [m,e,a,an,s,ph] = await Promise.all([
       supabase.from("members").select("*").order("number"),
@@ -614,10 +615,20 @@ export default function App() {
         place:r.place||"",mapUrl:r.map_url||"",note:r.note||"",
         playerCount:r.player_count||11,deadline:r.deadline||"",deadlineTime:r.deadline_time||"",
         uniform:r.uniform||"",formation:r.formation||""});
-      setEvents(e.data.filter(r=>!r.deleted).map(ep));
+      const freshEvents=e.data.filter(r=>!r.deleted).map(ep);
+      if(Date.now()-lastLocalSaveRef.current <= 2500){
+        // 保存直後: formationフィールドだけは自分のローカル値を維持
+        setEvents(prev=>freshEvents.map(fe=>{
+          const local=prev.find(x=>x.id===fe.id);
+          return local?{...fe,formation:local.formation}:fe;
+        }));
+      } else {
+        setEvents(freshEvents);
+      }
       setTrashEvents(e.data.filter(r=>r.deleted).map(ep));
-      // 管理者が保存した配置（手動移動）を復元（ドラッグ操作中は上書きしない）
-      if(!draggingRef.current){
+      // 管理者が保存した配置（手動移動）を復元
+      // 自分が直近2.5秒以内に保存した場合は、リアルタイムechoによる巻き戻りを防ぐためスキップ
+      if(Date.now()-lastLocalSaveRef.current > 2500){
         const fs={};
         e.data.forEach(r=>{
           if(r.field_moves){
@@ -700,6 +711,7 @@ export default function App() {
   const persistMoves = (evId, all) => {
     // 管理者の配置のみDBに保存
     if(currentUser!=="manager") return;
+    lastLocalSaveRef.current = Date.now();
     const obj={};
     Object.entries(all).forEach(([k,v])=>{
       if(k.startsWith(`${evId}|`)) obj[k.slice(`${evId}|`.length)]=v;
@@ -714,6 +726,7 @@ export default function App() {
   const selectFormation = (evId,k) => {
     setFormationSel(p=>({...p,[evId]:k}));
     if(currentUser==="manager"){
+      lastLocalSaveRef.current = Date.now();
       setEvents(p=>p.map(e=>e.id===evId?{...e,formation:k}:e));
       supabase.from("events").update({formation:k}).eq("id",evId);
     }
@@ -751,8 +764,13 @@ export default function App() {
     {key:"formation",label:"⚽ フォーメーション"},
     {key:"members",label:"👥 メンバー"},
   ];
-  const todayStr = new Date().toISOString().slice(0,10);
-  const weekEndStr = (()=>{ const d=new Date(); const diff=7-d.getDay(); d.setDate(d.getDate()+diff); return d.toISOString().slice(0,10); })();
+  const jstDateStr = (d=new Date()) => {
+    // 日本時間(UTC+9)での YYYY-MM-DD
+    const jst = new Date(d.getTime() + (9*60 - d.getTimezoneOffset())*60000);
+    return jst.toISOString().slice(0,10);
+  };
+  const todayStr = jstDateStr();
+  const weekEndStr = (()=>{ const now=new Date(); const jst=new Date(now.getTime()+(9*60-now.getTimezoneOffset())*60000); const diff=7-jst.getUTCDay(); jst.setUTCDate(jst.getUTCDate()+diff); return jst.toISOString().slice(0,10); })();
   const isToday = (ev)=>ev.date===todayStr;
   const isThisWeek = (ev)=>ev.date>todayStr&&ev.date<=weekEndStr;
   const sortedEvents = [...events]
@@ -772,7 +790,7 @@ export default function App() {
     });
   };
 
-  const today = new Date().toISOString().slice(0,10);
+  const today = jstDateStr();
   const now = new Date();
   const getDeadlineDt = (ev) => {
     if(!ev.deadline) return null;
@@ -887,7 +905,7 @@ export default function App() {
   };
   const addAnn = async () => {
     if(!newAnn.title) return;
-    const date=new Date().toISOString().slice(0,10);
+    const date=jstDateStr();
     const draft={...newAnn,date};
     setNA(blankAnn); setShowAddAnn(false);
     const {data} = await supabase.from("announcements").insert({date,title:draft.title,body:draft.body}).select().single();
