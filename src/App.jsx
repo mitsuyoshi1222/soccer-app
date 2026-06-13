@@ -1378,10 +1378,12 @@ export default function App() {
                     onClick={()=>{setFormationEvId(ev.id);setTab("formation");}}>
                     ⚽ フォーメーションを確認
                   </button>
-                  {isManager&&un>0&&(
+                  {isManager&&(
                     <button style={{...S.btnSm,background:"#06C755",flex:1}} onClick={()=>handleCopy(announceText(ev))}>
                       📢 告知文コピー
                     </button>
+                  )}
+                  {isManager&&un>0&&(
                     <button style={{...S.btnSm,background:"#06C755",flex:1}} onClick={()=>setShowReminder(ev.id)}>
                       💬 リマインド
                     </button>
