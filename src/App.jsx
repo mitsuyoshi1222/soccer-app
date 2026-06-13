@@ -173,12 +173,14 @@ function splitTeams(players) {
 }
 
 // 時間選択（時・分を別スクロール、タッチで12:00から開始）
-function TimeSelect({ value, onChange, minuteStep=10, accent=false }) {
+function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=false }) {
   const [h,m] = value ? value.split(":") : ["",""];
+  const bg = required ? "#fef2f2" : accent ? "#fffbeb" : "#fff";
+  const bc = required ? "#fca5a5" : accent ? "#f59e0b" : "#e2e8f0";
   const selStyle = {
-    flex:1, border:`1.5px solid ${accent?"#f59e0b":"#e2e8f0"}`, borderRadius:8,
+    flex:1, border:`1.5px solid ${bc}`, borderRadius:8,
     padding:"9px 6px", fontSize:15, outline:"none", boxSizing:"border-box",
-    background:accent?"#fffbeb":"#fff", textAlign:"center", textAlignLast:"center"
+    background:bg, textAlign:"center", textAlignLast:"center"
   };
   const hours = Array.from({length:24},(_,i)=>i.toString().padStart(2,"0"));
   const minutes = Array.from({length:60/minuteStep},(_,i)=>(i*minuteStep).toString().padStart(2,"0"));
@@ -403,13 +405,15 @@ export default function App() {
 
   // ── Supabaseからデータ読み込み ──
   const loadAll = async () => {
-    const [m,e,a,an,s] = await Promise.all([
+    const [m,e,a,an,s,ph] = await Promise.all([
       supabase.from("members").select("*").order("number"),
       supabase.from("events").select("*").order("date"),
       supabase.from("attendance").select("*"),
       supabase.from("announcements").select("*").order("id",{ascending:false}),
       supabase.from("settings").select("*").eq("id",1).single(),
+      supabase.from("place_history").select("*").order("created_at",{ascending:false}),
     ]);
+    if(ph.data) setPlaceHistory(ph.data.map(r=>({id:r.id,place:r.place,mapUrl:r.map_url||""})));
     if(m.data) setMembers(m.data.map(r=>({id:r.id,name:r.name,number:r.number,
       pos1:r.pos1||"",pos2:r.pos2||"",pos3:r.pos3||"",
       side1:r.side1||"",side2:r.side2||"",side3:r.side3||""})));
@@ -521,36 +525,62 @@ export default function App() {
   const [newAnn,    setNA] = useState(blankAnn);
   const [editData,  setED] = useState({...blankMember,...blankPos});
   const [posData,   setPD] = useState(blankPos);
+  const [placeHistory, setPlaceHistory] = useState([]);
+  const [showReqError, setShowReqError] = useState(false);
 
   const isManager = currentUser === "manager";
   const TABS = [
     {key:"schedule",label:"📅 日程"},
-    {key:"announcements",label:"📢 お知らせ"},
     {key:"formation",label:"⚽ フォーメーション"},
     {key:"members",label:"👥 メンバー"},
   ];
-  const swipeRef = useRef({x:0,y:0,active:false});
+  const swipeRef = useRef({x:0,y:0,active:false,locked:false});
+  const [swipeDX, setSwipeDX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
   const onSwipeStart = (e) => {
-    // フォーメーションのドラッグ操作中はスワイプ無効
     if(e.target.closest&&e.target.closest("[data-slotkey]")){ swipeRef.current.active=false; return; }
     const t=e.touches[0];
-    swipeRef.current={x:t.clientX,y:t.clientY,active:true};
+    swipeRef.current={x:t.clientX,y:t.clientY,active:true,locked:false};
+    setSwiping(true);
   };
-  const onSwipeEnd = (e) => {
+  const onSwipeMove = (e) => {
     if(!swipeRef.current.active) return;
-    const t=e.changedTouches[0];
+    const t=e.touches[0];
     const dx=t.clientX-swipeRef.current.x;
     const dy=t.clientY-swipeRef.current.y;
+    if(!swipeRef.current.locked){
+      if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>10){ swipeRef.current.active=false; setSwiping(false); setSwipeDX(0); return; }
+      if(Math.abs(dx)>10) swipeRef.current.locked=true;
+    }
+    if(swipeRef.current.locked){
+      const idx=TABS.findIndex(tb=>tb.key===tab);
+      // 端では抵抗
+      let d=dx;
+      if((idx===0&&dx>0)||(idx===TABS.length-1&&dx<0)) d=dx*0.3;
+      setSwipeDX(d);
+    }
+  };
+  const onSwipeEnd = () => {
+    setSwiping(false);
+    if(!swipeRef.current.active){ setSwipeDX(0); return; }
     swipeRef.current.active=false;
-    if(Math.abs(dx)<70||Math.abs(dy)>60) return;
+    const dx=swipeDX;
+    setSwipeDX(0);
     const idx=TABS.findIndex(tb=>tb.key===tab);
-    if(dx<0&&idx<TABS.length-1) setTab(TABS[idx+1].key);
-    if(dx>0&&idx>0) setTab(TABS[idx-1].key);
+    if(dx<-60&&idx<TABS.length-1) setTab(TABS[idx+1].key);
+    else if(dx>60&&idx>0) setTab(TABS[idx-1].key);
   };
   const todayStr = new Date().toISOString().slice(0,10);
+  const weekEndStr = (()=>{ const d=new Date(); const diff=7-d.getDay(); d.setDate(d.getDate()+diff); return d.toISOString().slice(0,10); })();
+  const isToday = (ev)=>ev.date===todayStr;
+  const isThisWeek = (ev)=>ev.date>todayStr&&ev.date<=weekEndStr;
   const sortedEvents = [...events]
     .filter(ev => ev.date >= todayStr)
     .sort((a,b)=>a.date.localeCompare(b.date));
+  // 自分が未回答の予定数（提案2）
+  const myUnanswered = (!isManager&&currentUser)
+    ? sortedEvents.filter(ev=>(attendance[ev.id]?.[currentUser]?.status||"未回答")==="未回答").length
+    : 0;
   const getAtt = (evId,mId) => attendance[evId]?.[mId]||{status:"未回答"};
   const getByStatus = (evId,st) => members.filter(m=>getAtt(evId,m.id).status===st);
   const setAttStatus = async (evId,mId,status,extra={}) => {
@@ -611,6 +641,34 @@ export default function App() {
       side1:posData.side1||"",side2:posData.side2||"",side3:posData.side3||""
     }).eq("id",currentUser);
   };
+  const addPlaceHistory = async (place, mapUrl="") => {
+    if(!place) return;
+    // 既存と重複しなければ追加、最大10件に保つ
+    if(placeHistory.some(h=>h.place===place)){
+      // 既存のmapUrlを更新
+      if(mapUrl){
+        const ex=placeHistory.find(h=>h.place===place);
+        await supabase.from("place_history").update({map_url:mapUrl}).eq("id",ex.id);
+        setPlaceHistory(p=>p.map(h=>h.place===place?{...h,mapUrl}:h));
+      }
+      return;
+    }
+    const {data}=await supabase.from("place_history").insert({place,map_url:mapUrl}).select().single();
+    if(data){
+      let next=[{id:data.id,place,mapUrl},...placeHistory];
+      // 10件超は古いものを削除
+      if(next.length>10){
+        const removed=next.slice(10);
+        next=next.slice(0,10);
+        removed.forEach(r=>supabase.from("place_history").delete().eq("id",r.id));
+      }
+      setPlaceHistory(next);
+    }
+  };
+  const deletePlaceHistory = async (id) => {
+    setPlaceHistory(p=>p.filter(h=>h.id!==id));
+    await supabase.from("place_history").delete().eq("id",id);
+  };
   const eventToRow = (ev) => ({
     type:ev.type, title:ev.title, date:ev.date,
     time_from:ev.timeFrom||"", time_to:ev.timeTo||"", meet_time:ev.meetTime||"",
@@ -619,7 +677,13 @@ export default function App() {
     uniform:ev.uniform||""
   });
   const addEvent = async () => {
-    if(!newEvent.title||!newEvent.date) return;
+    // 必須: 種別・タイトル・日付・開始・終了・場所
+    if(!newEvent.type||!newEvent.title||!newEvent.date||!newEvent.timeFrom||!newEvent.timeTo||!newEvent.place){
+      setShowReqError(true);
+      return;
+    }
+    setShowReqError(false);
+    if(newEvent.place) addPlaceHistory(newEvent.place, newEvent.mapUrl||"");
     if(editEventId){
       setEvents(p=>p.map(e=>e.id===editEventId?{...newEvent,id:editEventId}:e));
       const id=editEventId;
@@ -692,6 +756,12 @@ export default function App() {
     mbox: {background:"#fff",borderRadius:"16px 16px 0 0",padding:20,width:"100%",maxWidth:430,margin:"0 auto",maxHeight:"88vh",overflowY:"auto"},
     row:  {display:"flex",gap:8,marginBottom:10},
   };
+  const reqLbl = {fontSize:12,color:"#dc2626",fontWeight:700,marginBottom:4,display:"block"};
+  const reqStyle = (val) => ({
+    width:"100%",borderRadius:8,padding:"9px 12px",fontSize:14,outline:"none",boxSizing:"border-box",
+    background:val?"#fff":"#fef2f2",
+    border:`1.5px solid ${val?"#e2e8f0":"#fca5a5"}`
+  });
 
   // ── ログイン ─────────────────────────────────────────
   if (showLogin) return (
@@ -945,7 +1015,7 @@ export default function App() {
     <div style={S.body}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{fontSize:15,fontWeight:700}}>スケジュール</div>
-        {isManager&&<button style={S.btnSm} onClick={()=>{setNE(blankEvent);setEditEventId(null);setShowAddEvent(true);}}>＋ 追加</button>}
+        {isManager&&<button style={S.btnSm} onClick={()=>{setNE(blankEvent);setEditEventId(null);setShowReqError(false);setShowAddEvent(true);}}>＋ 追加</button>}
       </div>
       {sortedEvents.map(ev=>{
         const yes=getByStatus(ev.id,"出席").length,no=getByStatus(ev.id,"欠席").length,
@@ -953,9 +1023,24 @@ export default function App() {
               un=getByStatus(ev.id,"未回答").length;
         const open=selectedEventId===ev.id;
         const dlSoon=isDeadlineSoon(ev),dlPast=isDeadlinePast(ev);
+        const today=isToday(ev), thisWeek=isThisWeek(ev);
+        const myStatus=!isManager&&currentUser?(attendance[ev.id]?.[currentUser]?.status||"未回答"):null;
+        const needAnswer=myStatus==="未回答";
         return (
-          <div key={ev.id} style={{...S.card,borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":"#22c55e"}`,cursor:"pointer"}}
+          <div key={ev.id} style={{...S.card,
+            borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":"#22c55e"}`,
+            cursor:"pointer",position:"relative",
+            ...(today?{boxShadow:"0 0 0 2px #ef4444, 0 1px 3px rgba(0,0,0,0.07)"}:
+                needAnswer?{boxShadow:"0 0 0 2px #fbbf24, 0 1px 3px rgba(0,0,0,0.07)"}:{})}}
             onClick={()=>setSelectedEventId(open?null:ev.id)}>
+            {/* 今日/今週/未回答リボン */}
+            {(today||thisWeek||needAnswer)&&(
+              <div style={{display:"flex",gap:5,marginBottom:8,flexWrap:"wrap"}}>
+                {today&&<span style={{background:"#ef4444",color:"#fff",fontSize:10,fontWeight:800,padding:"2px 8px",borderRadius:20}}>🔥 本日開催</span>}
+                {thisWeek&&<span style={{background:"#3b82f6",color:"#fff",fontSize:10,fontWeight:800,padding:"2px 8px",borderRadius:20}}>📆 今週</span>}
+                {needAnswer&&<span style={{background:"#f59e0b",color:"#fff",fontSize:10,fontWeight:800,padding:"2px 8px",borderRadius:20}}>✋ 未回答</span>}
+              </div>
+            )}
             <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
               {/* 日付ボックス */}
               {(()=>{
@@ -1257,14 +1342,21 @@ export default function App() {
         </div>
         <div style={{...S.tabs,gap:5,paddingBottom:10}}>
           {TABS.map(t=>(
-            <button key={t.key} style={S.tab(tab===t.key)} onClick={()=>setTab(t.key)}>{t.label}</button>
+            <button key={t.key} style={{...S.tab(tab===t.key),position:"relative"}} onClick={()=>setTab(t.key)}>
+              {t.label}
+              {t.key==="schedule"&&myUnanswered>0&&(
+                <span style={{position:"absolute",top:2,right:6,background:"#ef4444",color:"#fff",
+                  fontSize:9,fontWeight:800,borderRadius:10,minWidth:16,height:16,display:"flex",
+                  alignItems:"center",justifyContent:"center",padding:"0 4px"}}>{myUnanswered}</span>
+              )}
+            </button>
           ))}
         </div>
       </div>
 
-      <div onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd}>
+      <div onTouchStart={onSwipeStart} onTouchMove={onSwipeMove} onTouchEnd={onSwipeEnd}
+        style={{transform:`translateX(${swipeDX}px)`,transition:swiping?"none":"transform 0.25s ease-out"}}>
         {tab==="schedule"&&renderSchedule()}
-        {tab==="announcements"&&renderAnnouncements()}
         {tab==="formation"&&renderFormation()}
         {tab==="members"&&renderMembers()}
       </div>
@@ -1348,62 +1440,68 @@ export default function App() {
         <div style={S.modal} onClick={()=>setShowAddEvent(false)}>
           <div style={S.mbox} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:16,fontWeight:800,marginBottom:14}}>{editEventId?"イベント編集":"イベント追加"}</div>
-            <div style={{marginBottom:10}}>
-              <label style={S.lbl}>種別</label>
-              <select style={S.sel} value={newEvent.type} onChange={e=>setNE(p=>({...p,type:e.target.value}))}>
-                <option value="match">試合</option><option value="practice">練習</option><option value="紅白戦">紅白戦</option>
-              </select>
+            {showReqError&&(
+              <div style={{background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:12,color:"#dc2626",fontWeight:600}}>
+                ⚠️ 赤色の必須項目を入力してください
+              </div>
+            )}
+            <div style={S.row}>
+              <div style={{flex:1}}>
+                <label style={reqLbl}>種別 *</label>
+                <select style={reqStyle(newEvent.type)} value={newEvent.type} onChange={e=>setNE(p=>({...p,type:e.target.value}))}>
+                  <option value="match">試合</option><option value="practice">練習</option><option value="紅白戦">紅白戦</option>
+                </select>
+              </div>
+              <div style={{flex:2}}>
+                <label style={reqLbl}>タイトル *</label>
+                <input style={reqStyle(newEvent.title)} placeholder="例: vs FC東京" value={newEvent.title} onChange={e=>setNE(p=>({...p,title:e.target.value}))}/>
+              </div>
             </div>
-            <div style={{marginBottom:10}}>
-              <label style={S.lbl}>タイトル</label>
-              <input style={S.inp} placeholder="例: vs FC東京" value={newEvent.title} onChange={e=>setNE(p=>({...p,title:e.target.value}))}/>
-            </div>
-            <div style={{marginBottom:10}}>
-              <label style={S.lbl}>日付</label>
-              <input style={S.inp} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
-            </div>
-            <div style={{marginBottom:10}}>
-              <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
-              <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
+            <div style={S.row}>
+              <div style={{flex:1.2}}>
+                <label style={reqLbl}>日付 *</label>
+                <input style={reqStyle(newEvent.date)} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
+              </div>
+              <div style={{flex:1}}>
+                <label style={{...S.lbl,color:"#d97706"}}>🕐 集合</label>
+                <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
+              </div>
             </div>
             <div style={S.row}>
               <div style={{flex:1}}>
-                <label style={S.lbl}>開始時間</label>
-                <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>({...p,timeFrom:v}))}/>
+                <label style={reqLbl}>開始時間 *</label>
+                <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>({...p,timeFrom:v}))} required={!newEvent.timeFrom}/>
               </div>
               <div style={{flex:1}}>
-                <label style={S.lbl}>終了時間</label>
-                <TimeSelect value={newEvent.timeTo} onChange={v=>setNE(p=>({...p,timeTo:v}))}/>
+                <label style={reqLbl}>終了時間 *</label>
+                <TimeSelect value={newEvent.timeTo} onChange={v=>setNE(p=>({...p,timeTo:v}))} required={!newEvent.timeTo}/>
               </div>
             </div>
             <div style={{marginBottom:10}}>
-              <label style={S.lbl}>場所</label>
-              <input style={S.inp} placeholder="例: 代々木公園グラウンド" value={newEvent.place} onChange={e=>setNE(p=>({...p,place:e.target.value}))}/>
-              {(()=>{
-                // 過去に入力した場所の履歴（新しい順・重複なし）
-                const seen=new Set();
-                const history=[...events].reverse()
-                  .filter(e=>e.place&&!seen.has(e.place)&&(seen.add(e.place),true))
-                  .slice(0,8);
-                if(!history.length) return null;
-                return (
-                  <div style={{marginTop:6}}>
-                    <div style={{fontSize:10,color:"#94a3b8",marginBottom:4}}>📌 履歴からえらぶ</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                      {history.map(h=>(
-                        <button key={h.id} type="button"
+              <label style={reqLbl}>場所 *</label>
+              <input style={reqStyle(newEvent.place)} placeholder="例: 谷本公園 球技場" value={newEvent.place} onChange={e=>setNE(p=>({...p,place:e.target.value}))}/>
+              {placeHistory.length>0&&(
+                <div style={{marginTop:6}}>
+                  <div style={{fontSize:10,color:"#94a3b8",marginBottom:4}}>📌 履歴からえらぶ（×で削除）</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                    {placeHistory.map(h=>(
+                      <div key={h.id} style={{display:"inline-flex",alignItems:"center",
+                        background:newEvent.place===h.place?"#eff6ff":"#f8fafc",
+                        border:`1.5px solid ${newEvent.place===h.place?"#3b82f6":"#e2e8f0"}`,
+                        borderRadius:20,overflow:"hidden"}}>
+                        <button type="button"
                           onClick={()=>setNE(p=>({...p,place:h.place,mapUrl:h.mapUrl||""}))}
-                          style={{background:newEvent.place===h.place?"#eff6ff":"#f8fafc",
-                            border:`1.5px solid ${newEvent.place===h.place?"#3b82f6":"#e2e8f0"}`,
-                            borderRadius:20,padding:"5px 12px",fontSize:12,cursor:"pointer",
+                          style={{background:"none",border:"none",padding:"5px 4px 5px 12px",fontSize:12,cursor:"pointer",
                             color:"#475569",fontWeight:newEvent.place===h.place?700:400}}>
                           📍 {h.place}
                         </button>
-                      ))}
-                    </div>
+                        <button type="button" onClick={()=>deletePlaceHistory(h.id)}
+                          style={{background:"none",border:"none",padding:"5px 9px 5px 4px",fontSize:13,cursor:"pointer",color:"#cbd5e1"}}>×</button>
+                      </div>
+                    ))}
                   </div>
-                );
-              })()}
+                </div>
+              )}
               {newEvent.place&&(
                 <a href={newEvent.mapUrl||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(newEvent.place)}`}
                   target="_blank" rel="noopener noreferrer"
@@ -1422,11 +1520,15 @@ export default function App() {
             <div style={{marginBottom:10}}>
               <label style={{...S.lbl,color:"#d97706"}}>⏰ 回答期限</label>
               <div style={S.row}>
-                <div style={{flex:1}}>
+                <div style={{flex:1.3}}>
                   <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb"}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
                 </div>
                 <div style={{flex:1}}>
-                  <TimeSelect value={newEvent.deadlineTime} onChange={v=>setNE(p=>({...p,deadlineTime:v}))} minuteStep={60} accent/>
+                  <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb",textAlignLast:"center"}}
+                    value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
+                    <option value="">時刻なし</option>
+                    {Array.from({length:24},(_,i)=>{const h=i.toString().padStart(2,"0");return <option key={i} value={`${h}:00`}>{`${h}:00`}</option>;})}
+                  </select>
                 </div>
               </div>
             </div>
