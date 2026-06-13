@@ -168,7 +168,19 @@ function assignFormation(players, fKey) {
 
 function splitTeams(players) {
   const red=[],white=[];
-  POSITIONS.forEach(pos => players.filter(p=>p.pos1===pos).forEach((p,i)=>(i%2===0?red:white).push(p)));
+  // ポジションごとに分け、各チームの人数が少ない方へ優先的に割り当て（人数均等を最優先）
+  const order=["GK","DF","MF","FW",""];
+  const grouped=[];
+  order.forEach(pos=>{
+    players.filter(p=>(p.pos1||"")===pos).forEach(p=>grouped.push(p));
+  });
+  // 念のため未分類（上記に該当しない）も拾う
+  players.forEach(p=>{ if(!grouped.includes(p)) grouped.push(p); });
+  grouped.forEach(p=>{
+    if(red.length<white.length) red.push(p);
+    else if(white.length<red.length) white.push(p);
+    else red.push(p); // 同数なら紅へ
+  });
   return { red, white };
 }
 
@@ -390,6 +402,138 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
           </div>
         );
       })()}
+    </div>
+  );
+}
+
+// 紅白戦: 2チームを1つのドラッグコンテキストで扱い、チーム間移動を可能にする
+function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], onTeamMove, slotRot, onRotate }) {
+  const [dragPid, setDragPid] = useState(null);
+  const [dragPos, setDragPos] = useState({x:0,y:0});
+  const [hoverKey, setHoverKey] = useState(null);
+  const pressRef = useRef(null);
+  const justDraggedRef = useRef(false);
+
+  // teamMoves: [[pid,"red"|"white"], ...] チーム所属の上書き
+  const moveMap = {}; teamMoves.forEach(([pid,team])=>{moveMap[pid]=team;});
+  const red = [], white = [];
+  redPlayers.forEach(p=>{ (moveMap[p.id]==="white"?white:red).push(p); });
+  whitePlayers.forEach(p=>{ (moveMap[p.id]==="red"?red:white).push(p); });
+
+  const redSlots = assignFormation(red, fKey);
+  const whiteSlots = assignFormation(white, fKey);
+  const allById = {}; [...red,...white].forEach(p=>allById[p.id]=p);
+
+  useEffect(()=>{
+    if(dragPid===null) return;
+    const onMove=(e)=>{
+      setDragPos({x:e.clientX,y:e.clientY});
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      const fe=el&&el.closest("[data-team]");
+      setHoverKey(fe?fe.getAttribute("data-team"):null);
+    };
+    const onUp=()=>{ setDragPid(null); setHoverKey(null); };
+    window.addEventListener("pointermove",onMove);
+    window.addEventListener("pointerup",onUp);
+    return ()=>{ window.removeEventListener("pointermove",onMove); window.removeEventListener("pointerup",onUp); };
+  },[dragPid]);
+
+  const startPress = (e,pid)=>{
+    if(!canDrag) return;
+    const x=e.clientX,y=e.clientY;
+    pressRef.current=setTimeout(()=>{ setDragPid(pid); setDragPos({x,y}); if(navigator.vibrate)navigator.vibrate(30); },350);
+  };
+  const cancelPress=()=>{ if(pressRef.current){clearTimeout(pressRef.current);pressRef.current=null;} };
+  const handleUp=(e)=>{
+    cancelPress();
+    if(dragPid!==null){
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      const fe=el&&el.closest("[data-team]");
+      if(fe&&onTeamMove){
+        const targetTeam=fe.getAttribute("data-team");
+        const curTeam=red.some(p=>p.id===dragPid)?"red":"white";
+        if(targetTeam!==curTeam) onTeamMove(dragPid,targetTeam);
+      }
+      justDraggedRef.current=true;
+      setTimeout(()=>{justDraggedRef.current=false;},100);
+      setDragPid(null); setHoverKey(null);
+    }
+  };
+
+  const Team = ({ team, slots, players, color, label }) => {
+    const total=["GK","DF","MF","FW"].reduce((a,pos)=>a+slots[pos].reduce((b,sl)=>b+sl.length,0),0);
+    const isHover=hoverKey===team&&dragPid!==null;
+    return (
+      <div data-team={team} onPointerUp={handleUp}
+        style={{ background:`linear-gradient(180deg,${color}22 0%,#15803d 100%)`,
+          borderRadius:12,padding:"10px 8px",position:"relative",overflow:"hidden",
+          border:isHover?"2.5px solid #fbbf24":"2.5px solid transparent",
+          transition:"border 0.1s",
+          userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none" }}>
+        <div style={{fontSize:12,fontWeight:800,color:"#fff",marginBottom:6,textShadow:"0 1px 2px rgba(0,0,0,0.4)"}}>{label}（{total}名）</div>
+        {["FW","MF","DF","GK"].map(pos=>{
+          const row=slots[pos]||[];
+          if(!row.length) return null;
+          const sides=slotSides(row.length);
+          return (
+            <div key={pos} style={{marginBottom:6}}>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",textAlign:"center",marginBottom:3}}>{pos}</div>
+              <div style={{display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap"}}>
+                {row.map((slot,si)=>{
+                  const rotKey=`${team}-${pos}-${si}`;
+                  const label2=roleLabel(pos,sides[si]);
+                  if(slot.length===0){
+                    return <div key={si} style={{display:"flex",alignItems:"center",justifyContent:"center",
+                      borderRadius:7,padding:"5px 8px",minWidth:40,minHeight:46,
+                      border:"1.5px dashed rgba(255,255,255,0.3)"}}>
+                      <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700}}>{label2}</div></div>;
+                  }
+                  const rot=slotRot[rotKey]||0;
+                  const cur=slot[rot%slot.length];
+                  const hasMore=slot.length>1;
+                  const isDragging=dragPid===cur.id;
+                  return (
+                    <div key={si}
+                      onClick={()=>{ if(justDraggedRef.current)return; hasMore&&onRotate&&onRotate(rotKey); }}
+                      onPointerDown={(e)=>startPress(e,cur.id)}
+                      onPointerUp={handleUp}
+                      onPointerCancel={cancelPress}
+                      style={{display:"flex",flexDirection:"column",alignItems:"center",
+                        background:"rgba(255,255,255,0.13)",borderRadius:7,padding:"5px 7px",minWidth:40,
+                        position:"relative",cursor:hasMore?"pointer":canDrag?"grab":"default",
+                        border:hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
+                        opacity:isDragging?0.3:1,touchAction:canDrag?"none":"auto",
+                        userSelect:"none",WebkitUserSelect:"none"}}>
+                      {hasMore&&<div style={{position:"absolute",top:-6,right:-6,background:"#f59e0b",color:"#fff",fontSize:8,fontWeight:800,borderRadius:10,padding:"1px 5px"}}>+{slot.length-1}</div>}
+                      <div style={{width:26,height:26,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:11}}>{cur.number}</div>
+                      <div style={{fontSize:9,color:"#e2e8f0",marginTop:2,textAlign:"center"}}>{cur.name.split(" ")[0]}</div>
+                      <div style={{fontSize:7,color:"rgba(255,255,255,0.5)"}}>{label2}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        {total===0&&<div style={{color:"rgba(255,255,255,0.4)",textAlign:"center",padding:20,fontSize:12}}>選手がいません</div>}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <Team team="red" slots={redSlots} players={red} color="#dc2626" label="🔴 紅チーム"/>
+      <div style={{height:10}}/>
+      <Team team="white" slots={whiteSlots} players={white} color="#475569" label="⚪ 白チーム"/>
+      {canDrag&&<div style={{fontSize:10,color:"#94a3b8",textAlign:"center",marginTop:8}}>選手を長押し→相手チームのエリアで離すとチーム移動</div>}
+      {dragPid!==null&&allById[dragPid]&&(
+        <div style={{position:"fixed",left:dragPos.x-24,top:dragPos.y-54,zIndex:1000,pointerEvents:"none",transform:"scale(1.25)",
+          display:"flex",flexDirection:"column",alignItems:"center",background:"rgba(15,23,42,0.85)",borderRadius:9,padding:"6px 9px",
+          boxShadow:"0 8px 24px rgba(0,0,0,0.45)",border:"2px solid #fbbf24"}}>
+          <div style={{width:26,height:26,borderRadius:"50%",background:red.some(p=>p.id===dragPid)?"#dc2626":"#475569",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:11}}>{allById[dragPid].number}</div>
+          <div style={{fontSize:9,color:"#fff",marginTop:2}}>{allById[dragPid].name.split(" ")[0]}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1074,7 +1218,7 @@ export default function App() {
                 ))}
               </div>
             )}
-            {ev.note&&<div style={{fontSize:11,color:"#94a3b8",marginTop:3}}>{ev.note}</div>}
+            {ev.note&&<div style={{fontSize:11,color:"#94a3b8",marginTop:3,whiteSpace:"pre-wrap"}}>{ev.note}</div>}
             <div style={{display:"flex",gap:8,marginTop:8,fontSize:12,fontWeight:700,flexWrap:"wrap"}}>
               <span style={{color:"#22c55e"}}>✅ {yes}</span>
               <span style={{color:"#ef4444"}}>❌ {no}</span>
@@ -1210,27 +1354,34 @@ export default function App() {
         </div>
         {is紅白?(()=>{
           const {red,white}=splitTeams(attending);
+          const teamMoveKey=`${ev.id}|teams`;
           return (
-            <div>
-              <div style={{fontSize:13,fontWeight:700,color:"#dc2626",marginBottom:6}}>🔴 紅チーム（{red.length}名）</div>
-              <FieldDisplay slots={assignFormation(red,fKey)} fKey={fKey} accentColor="#dc2626" rotPrefix="red-" slotRot={slotRot} onRotate={rotateSlot}
-                canDrag={isManager} moves={fieldSwaps[`${ev.id}|${fKey}|red`]||[]} onMove={(pid,sk)=>addSwap(`${ev.id}|${fKey}|red`,pid,sk)}/>
-              <div style={{fontSize:13,fontWeight:700,color:"#475569",margin:"12px 0 6px"}}>⚪ 白チーム（{white.length}名）</div>
-              <FieldDisplay slots={assignFormation(white,fKey)} fKey={fKey} accentColor="#475569" rotPrefix="white-" slotRot={slotRot} onRotate={rotateSlot}
-                canDrag={isManager} moves={fieldSwaps[`${ev.id}|${fKey}|white`]||[]} onMove={(pid,sk)=>addSwap(`${ev.id}|${fKey}|white`,pid,sk)}/>
-            </div>
+            <RedWhiteField
+              redPlayers={red} whitePlayers={white} fKey={fKey}
+              canDrag={isManager}
+              teamMoves={fieldSwaps[teamMoveKey]||[]}
+              onTeamMove={(pid,team)=>{
+                setFieldSwaps(p=>{
+                  // 同じ選手の既存移動を除去してから追加
+                  const cur=(p[teamMoveKey]||[]).filter(([id])=>id!==pid);
+                  const next={...p,[teamMoveKey]:[...cur,[pid,team]]};
+                  persistMoves(ev.id,next);
+                  return next;
+                });
+              }}
+              slotRot={slotRot} onRotate={rotateSlot}/>
           );
         })():<FieldDisplay slots={assignFormation(attending,fKey)} fKey={fKey} slotRot={slotRot} onRotate={rotateSlot}
           canDrag={isManager} moves={fieldSwaps[`${ev.id}|${fKey}|`]||[]} onMove={(pid,sk)=>addSwap(`${ev.id}|${fKey}|`,pid,sk)}/>}
-        {isManager&&Object.keys(fieldSwaps).some(k=>k.startsWith(`${ev.id}|${fKey}|`))&&(
+        {isManager&&Object.keys(fieldSwaps).some(k=>k.startsWith(`${ev.id}|`))&&(
           <button style={{...S.btnGhost,width:"100%",marginTop:8,fontSize:11}}
             onClick={()=>setFieldSwaps(p=>{
               const u={...p};
-              Object.keys(u).forEach(k=>{ if(k.startsWith(`${ev.id}|${fKey}|`)) delete u[k]; });
+              Object.keys(u).forEach(k=>{ if(k.startsWith(`${ev.id}|`)) delete u[k]; });
               persistMoves(ev.id, u);
               return u;
             })}>
-            ↩️ 配置を自動配置に戻す
+            ↩️ 配置・チーム分けを自動に戻す
           </button>
         )}
       </div>
@@ -1436,21 +1587,21 @@ export default function App() {
               </div>
             </div>
             <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
-              <div style={{flex:1,minWidth:0}}>
+              <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={reqLbl}>日付 *</label>
-                <input style={reqStyle(newEvent.date)} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
+                <input style={{...reqStyle(newEvent.date),width:"100%",minWidth:0,padding:"9px 4px",textAlign:"center"}} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
               </div>
-              <div style={{flex:1,minWidth:0}}>
+              <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
                 <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
               </div>
             </div>
             <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
-              <div style={{flex:1,minWidth:0}}>
+              <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={reqLbl}>開始時間 *</label>
                 <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>({...p,timeFrom:v}))} required={!newEvent.timeFrom}/>
               </div>
-              <div style={{flex:1,minWidth:0}}>
+              <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={reqLbl}>終了時間 *</label>
                 <TimeSelect value={newEvent.timeTo} onChange={v=>setNE(p=>({...p,timeTo:v}))} required={!newEvent.timeTo}/>
               </div>
@@ -1497,12 +1648,18 @@ export default function App() {
             </div>
             <div style={{marginBottom:10}}>
               <label style={{...S.lbl,color:"#d97706"}}>⏰ 回答期限</label>
-              <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb",marginBottom:8}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
-              <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb"}}
-                value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
-                <option value="">時刻なし</option>
-                {Array.from({length:24},(_,i)=>{const h=i.toString().padStart(2,"0");return <option key={i} value={`${h}:00`}>{`${h}:00`}</option>;})}
-              </select>
+              <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                <div style={{flex:"1 1 0",minWidth:0}}>
+                  <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb",width:"100%",minWidth:0,padding:"9px 4px",textAlign:"center"}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
+                </div>
+                <div style={{flex:"1 1 0",minWidth:0}}>
+                  <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb",width:"100%",minWidth:0,textAlignLast:"center"}}
+                    value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
+                    <option value="">時刻なし</option>
+                    {Array.from({length:24},(_,i)=>{const h=i.toString().padStart(2,"0");return <option key={i} value={`${h}:00`}>{`${h}:00`}</option>;})}
+                  </select>
+                </div>
+              </div>
             </div>
             <div style={{marginBottom:10}}>
               <label style={S.lbl}>人数（何人制）</label>
@@ -1534,7 +1691,7 @@ export default function App() {
             </div>
             <div style={{marginBottom:16}}>
               <label style={S.lbl}>メモ</label>
-              <input style={S.inp} placeholder="例: ホーム戦" value={newEvent.note} onChange={e=>setNE(p=>({...p,note:e.target.value}))}/>
+              <textarea style={{...S.inp,minHeight:70,resize:"vertical",lineHeight:1.5}} placeholder="例: ホーム戦&#10;集合場所など改行で記入できます" value={newEvent.note} onChange={e=>setNE(p=>({...p,note:e.target.value}))}/>
             </div>
             <div style={{display:"flex",gap:8}}>
               <button style={{...S.btn,flex:1}} onClick={addEvent}>{editEventId?"保存する":"追加する"}</button>
