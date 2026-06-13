@@ -406,31 +406,50 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
   );
 }
 
-// 紅白戦: 2チームを1つのドラッグコンテキストで扱い、チーム間移動を可能にする
-function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], onTeamMove, slotRot, onRotate }) {
+// 紅白戦: 2チームを1つのドラッグコンテキストで扱い、チーム内移動＋チーム間移動の両方に対応
+function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], slotMoves=[], onChange, slotRot, onRotate }) {
   const [dragPid, setDragPid] = useState(null);
   const [dragPos, setDragPos] = useState({x:0,y:0});
   const [hoverKey, setHoverKey] = useState(null);
   const pressRef = useRef(null);
   const justDraggedRef = useRef(false);
 
-  // teamMoves: [[pid,"red"|"white"], ...] チーム所属の上書き
   const moveMap = {}; teamMoves.forEach(([pid,team])=>{moveMap[pid]=team;});
   const red = [], white = [];
   redPlayers.forEach(p=>{ (moveMap[p.id]==="white"?white:red).push(p); });
   whitePlayers.forEach(p=>{ (moveMap[p.id]==="red"?red:white).push(p); });
 
-  const redSlots = assignFormation(red, fKey);
-  const whiteSlots = assignFormation(white, fKey);
+  const buildSlots = (players, team) => {
+    const s = assignFormation(players, fKey);
+    const sm = slotMoves.filter(([,sk])=>sk.startsWith(team+":"));
+    const locate=(pid)=>{
+      for(const pos of ["FW","MF","DF","GK"]) for(let si=0;si<s[pos].length;si++){
+        const ki=s[pos][si].findIndex(p=>p.id===pid); if(ki>=0) return [pos,si,ki];
+      } return null;
+    };
+    sm.forEach(([pid,sk])=>{
+      const loc=locate(pid); if(!loc) return;
+      const [pos,si,ki]=loc;
+      const rest=sk.split(":")[1];
+      const [tPos,tSi]=rest.split("__");
+      if(!s[tPos]||!s[tPos][parseInt(tSi)]) return;
+      const pl=s[pos][si].splice(ki,1)[0];
+      s[tPos][parseInt(tSi)].push(pl);
+    });
+    return s;
+  };
+  const redSlots = buildSlots(red,"red");
+  const whiteSlots = buildSlots(white,"white");
   const allById = {}; [...red,...white].forEach(p=>allById[p.id]=p);
+  const teamOf = (pid)=> red.some(p=>p.id===pid)?"red":"white";
 
   useEffect(()=>{
     if(dragPid===null) return;
     const onMove=(e)=>{
       setDragPos({x:e.clientX,y:e.clientY});
       const el=document.elementFromPoint(e.clientX,e.clientY);
-      const fe=el&&el.closest("[data-team]");
-      setHoverKey(fe?fe.getAttribute("data-team"):null);
+      const slotEl=el&&el.closest("[data-slotkey]");
+      setHoverKey(slotEl?slotEl.getAttribute("data-slotkey"):null);
     };
     const onUp=()=>{ setDragPid(null); setHoverKey(null); };
     window.addEventListener("pointermove",onMove);
@@ -448,11 +467,12 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
     cancelPress();
     if(dragPid!==null){
       const el=document.elementFromPoint(e.clientX,e.clientY);
-      const fe=el&&el.closest("[data-team]");
-      if(fe&&onTeamMove){
-        const targetTeam=fe.getAttribute("data-team");
-        const curTeam=red.some(p=>p.id===dragPid)?"red":"white";
-        if(targetTeam!==curTeam) onTeamMove(dragPid,targetTeam);
+      const slotEl=el&&el.closest("[data-slotkey]");
+      if(slotEl&&onChange){
+        const targetKey=slotEl.getAttribute("data-slotkey");
+        const targetTeam=targetKey.split(":")[0];
+        const curTeam=teamOf(dragPid);
+        onChange(dragPid, curTeam, targetTeam, targetKey);
       }
       justDraggedRef.current=true;
       setTimeout(()=>{justDraggedRef.current=false;},100);
@@ -460,16 +480,12 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
     }
   };
 
-  const Team = ({ team, slots, players, color, label }) => {
+  const Team = ({ team, slots, color, label }) => {
     const total=["GK","DF","MF","FW"].reduce((a,pos)=>a+slots[pos].reduce((b,sl)=>b+sl.length,0),0);
-    const isHover=hoverKey===team&&dragPid!==null;
     return (
-      <div data-team={team} onPointerUp={handleUp}
-        style={{ background:`linear-gradient(180deg,${color}22 0%,#15803d 100%)`,
-          borderRadius:12,padding:"10px 8px",position:"relative",overflow:"hidden",
-          border:isHover?"2.5px solid #fbbf24":"2.5px solid transparent",
-          transition:"border 0.1s",
-          userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none" }}>
+      <div style={{ background:`linear-gradient(180deg,${color}22 0%,#15803d 100%)`,
+        borderRadius:12,padding:"10px 8px",position:"relative",overflow:"hidden",
+        userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none" }}>
         <div style={{fontSize:12,fontWeight:800,color:"#fff",marginBottom:6,textShadow:"0 1px 2px rgba(0,0,0,0.4)"}}>{label}（{total}名）</div>
         {["FW","MF","DF","GK"].map(pos=>{
           const row=slots[pos]||[];
@@ -480,12 +496,17 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
               <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",textAlign:"center",marginBottom:3}}>{pos}</div>
               <div style={{display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap"}}>
                 {row.map((slot,si)=>{
+                  const slotKey=`${team}:${pos}__${si}`;
                   const rotKey=`${team}-${pos}-${si}`;
                   const label2=roleLabel(pos,sides[si]);
+                  const isHover=hoverKey===slotKey&&dragPid!==null;
                   if(slot.length===0){
-                    return <div key={si} style={{display:"flex",alignItems:"center",justifyContent:"center",
+                    return <div key={si} data-slotkey={slotKey} onPointerUp={handleUp}
+                      style={{display:"flex",alignItems:"center",justifyContent:"center",
                       borderRadius:7,padding:"5px 8px",minWidth:40,minHeight:46,
-                      border:"1.5px dashed rgba(255,255,255,0.3)"}}>
+                      border:isHover?"2px solid #fbbf24":"1.5px dashed rgba(255,255,255,0.3)",
+                      background:isHover?"rgba(251,191,36,0.35)":dragPid!==null?"rgba(255,255,255,0.12)":"transparent",
+                      transition:"background 0.1s"}}>
                       <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700}}>{label2}</div></div>;
                   }
                   const rot=slotRot[rotKey]||0;
@@ -493,15 +514,16 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
                   const hasMore=slot.length>1;
                   const isDragging=dragPid===cur.id;
                   return (
-                    <div key={si}
+                    <div key={si} data-slotkey={slotKey}
                       onClick={()=>{ if(justDraggedRef.current)return; hasMore&&onRotate&&onRotate(rotKey); }}
                       onPointerDown={(e)=>startPress(e,cur.id)}
                       onPointerUp={handleUp}
                       onPointerCancel={cancelPress}
                       style={{display:"flex",flexDirection:"column",alignItems:"center",
-                        background:"rgba(255,255,255,0.13)",borderRadius:7,padding:"5px 7px",minWidth:40,
+                        background:isHover&&!isDragging?"rgba(251,191,36,0.35)":"rgba(255,255,255,0.13)",
+                        borderRadius:7,padding:"5px 7px",minWidth:40,
                         position:"relative",cursor:hasMore?"pointer":canDrag?"grab":"default",
-                        border:hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
+                        border:isHover&&!isDragging?"2px solid #fbbf24":hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
                         opacity:isDragging?0.3:1,touchAction:canDrag?"none":"auto",
                         userSelect:"none",WebkitUserSelect:"none"}}>
                       {hasMore&&<div style={{position:"absolute",top:-6,right:-6,background:"#f59e0b",color:"#fff",fontSize:8,fontWeight:800,borderRadius:10,padding:"1px 5px"}}>+{slot.length-1}</div>}
@@ -522,15 +544,15 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
 
   return (
     <div>
-      <Team team="red" slots={redSlots} players={red} color="#dc2626" label="🔴 紅チーム"/>
+      <Team team="red" slots={redSlots} color="#dc2626" label="🔴 紅チーム"/>
       <div style={{height:10}}/>
-      <Team team="white" slots={whiteSlots} players={white} color="#475569" label="⚪ 白チーム"/>
-      {canDrag&&<div style={{fontSize:10,color:"#94a3b8",textAlign:"center",marginTop:8}}>選手を長押し→相手チームのエリアで離すとチーム移動</div>}
+      <Team team="white" slots={whiteSlots} color="#475569" label="⚪ 白チーム"/>
+      {canDrag&&<div style={{fontSize:10,color:"#94a3b8",textAlign:"center",marginTop:8}}>選手を長押し→枠で離すと配置変更／相手チームの枠で離すとチーム移動</div>}
       {dragPid!==null&&allById[dragPid]&&(
         <div style={{position:"fixed",left:dragPos.x-24,top:dragPos.y-54,zIndex:1000,pointerEvents:"none",transform:"scale(1.25)",
           display:"flex",flexDirection:"column",alignItems:"center",background:"rgba(15,23,42,0.85)",borderRadius:9,padding:"6px 9px",
           boxShadow:"0 8px 24px rgba(0,0,0,0.45)",border:"2px solid #fbbf24"}}>
-          <div style={{width:26,height:26,borderRadius:"50%",background:red.some(p=>p.id===dragPid)?"#dc2626":"#475569",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:11}}>{allById[dragPid].number}</div>
+          <div style={{width:26,height:26,borderRadius:"50%",background:teamOf(dragPid)==="red"?"#dc2626":"#475569",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:11}}>{allById[dragPid].number}</div>
           <div style={{fontSize:9,color:"#fff",marginTop:2}}>{allById[dragPid].name.split(" ")[0]}</div>
         </div>
       )}
@@ -1360,11 +1382,22 @@ export default function App() {
               redPlayers={red} whitePlayers={white} fKey={fKey}
               canDrag={isManager}
               teamMoves={fieldSwaps[teamMoveKey]||[]}
-              onTeamMove={(pid,team)=>{
+              slotMoves={fieldSwaps[`${ev.id}|${fKey}|rwslots`]||[]}
+              onChange={(pid,curTeam,targetTeam,targetKey)=>{
                 setFieldSwaps(p=>{
-                  // 同じ選手の既存移動を除去してから追加
-                  const cur=(p[teamMoveKey]||[]).filter(([id])=>id!==pid);
-                  const next={...p,[teamMoveKey]:[...cur,[pid,team]]};
+                  let next={...p};
+                  if(curTeam!==targetTeam){
+                    // チーム間移動：所属を上書き＋枠移動はクリア（新チームで再配置）
+                    const curTeams=(next[teamMoveKey]||[]).filter(([id])=>id!==pid);
+                    next[teamMoveKey]=[...curTeams,[pid,targetTeam]];
+                    const slotKey=`${ev.id}|${fKey}|rwslots`;
+                    next[slotKey]=(next[slotKey]||[]).filter(([id])=>id!==pid);
+                  } else {
+                    // 同チーム内の枠移動
+                    const slotKey=`${ev.id}|${fKey}|rwslots`;
+                    const cur=(next[slotKey]||[]).filter(([id])=>id!==pid);
+                    next[slotKey]=[...cur,[pid,targetKey]];
+                  }
                   persistMoves(ev.id,next);
                   return next;
                 });
