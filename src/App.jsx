@@ -12,7 +12,7 @@ const POS_COLOR = { GK:"#f59e0b", DF:"#3b82f6", MF:"#22c55e", FW:"#ef4444" };
 const ATT_STATUSES = ["出席","欠席","検討中","療養中","未回答"];
 const ATT_COLOR = { "出席":"#22c55e","欠席":"#ef4444","検討中":"#f59e0b","療養中":"#8b5cf6","未回答":"#94a3b8" };
 const ATT_BG    = { "出席":"#f0fdf4","欠席":"#fef2f2","検討中":"#fffbeb","療養中":"#f5f3ff","未回答":"#f8fafc" };
-const ATT_ICON  = { "出席":"✅","欠席":"❌","検討中":"🤔","療養中":"🤒","未回答":"⬜" };
+const ATT_ICON  = { "出席":"✅","欠席":"❌","検討中":"🤔","療養中":"🏥","未回答":"⬜" };
 
 const FORMATIONS = {
   // 11人制
@@ -252,9 +252,29 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
   },[dragPid]);
 
   // スロットをコピーして手動移動を適用
+  // 全選手リスト（baseSlotsをフラット化）
+  const allPlayers = [];
+  ["GK","DF","MF","FW"].forEach(pos=>{ (baseSlots[pos]||[]).forEach(sl=>sl.forEach(p=>allPlayers.push(p))); });
+  // 空スロット構造を用意
   const slots = {};
+  ["GK","DF","MF","FW"].forEach(pos=>{ slots[pos] = (baseSlots[pos]||[]).map(()=>[]); });
+  // moves = [[pid, "POS__si"]] を「絶対配置」として解釈（同じpidは最後の指定が有効）
+  const placeMap = {}; // pid -> slotKey
+  moves.forEach(([pid,slotKey])=>{ placeMap[pid]=slotKey; });
+  const placed = new Set();
+  // 1) 明示配置されている選手を先に置く
+  allPlayers.forEach(p=>{
+    const sk=placeMap[p.id];
+    if(!sk) return;
+    const [tPos,tSi]=sk.split("__");
+    const si=parseInt(tSi);
+    if(slots[tPos]&&slots[tPos][si]){ slots[tPos][si].push(p); placed.add(p.id); }
+  });
+  // 2) 残りは元の自動配置位置へ（既に置かれた人は除く）
   ["GK","DF","MF","FW"].forEach(pos=>{
-    slots[pos] = (baseSlots[pos]||[]).map(sl=>[...sl]);
+    (baseSlots[pos]||[]).forEach((sl,si)=>{
+      sl.forEach(p=>{ if(!placed.has(p.id)){ slots[pos][si].push(p); placed.add(p.id); } });
+    });
   });
   const locate = (pid)=>{
     for(const pos of ["FW","MF","DF","GK"]){
@@ -265,15 +285,6 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
     }
     return null;
   };
-  moves.forEach(([pid,slotKey])=>{
-    const loc=locate(pid);
-    if(!loc) return;
-    const [pos,si,ki]=loc;
-    const [tPos,tSi]=slotKey.split("__");
-    if(!slots[tPos]||!slots[tPos][parseInt(tSi)]) return;
-    const player=slots[pos][si].splice(ki,1)[0];
-    slots[tPos][parseInt(tSi)].push(player);
-  });
 
   const totalPlayers = ["GK","DF","MF","FW"].reduce((a,pos)=>a+slots[pos].reduce((b,sl)=>b+sl.length,0),0);
 
@@ -718,8 +729,10 @@ export default function App() {
     });
     supabase.from("events").update({field_moves:JSON.stringify(obj)}).eq("id",evId);
   };
-  const addSwap = (key,a,b) => setFieldSwaps(p=>{
-    const next={...p,[key]:[...(p[key]||[]),[a,b]]};
+  const addSwap = (key,pid,slotKey) => setFieldSwaps(p=>{
+    // 同じ選手の過去の配置指定を除去してから新しい位置を追加（絶対配置・最新優先）
+    const cur=(p[key]||[]).filter(([id])=>id!==pid);
+    const next={...p,[key]:[...cur,[pid,slotKey]]};
     persistMoves(parseInt(key.split("|")[0]), next);
     return next;
   });
@@ -1363,7 +1376,7 @@ export default function App() {
               <span style={{color:"#22c55e"}}>✅ {yes}</span>
               <span style={{color:"#ef4444"}}>❌ {no}</span>
               <span style={{color:"#f59e0b"}}>🤔 {maybe}</span>
-              {ill>0&&<span style={{color:"#8b5cf6"}}>🤒 {ill}</span>}
+              {ill>0&&<span style={{color:"#8b5cf6"}}>🏥 {ill}</span>}
               {un>0&&<span style={{color:"#94a3b8"}}>⬜ {un}</span>}
             </div>
             {!isManager&&currentMember&&(()=>{
