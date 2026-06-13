@@ -178,9 +178,9 @@ function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=fal
   const bg = required ? "#fef2f2" : accent ? "#fffbeb" : "#fff";
   const bc = required ? "#fca5a5" : accent ? "#f59e0b" : "#e2e8f0";
   const selStyle = {
-    flex:1, border:`1.5px solid ${bc}`, borderRadius:8,
-    padding:"9px 6px", fontSize:15, outline:"none", boxSizing:"border-box",
-    background:bg, textAlign:"center", textAlignLast:"center"
+    flex:1, minWidth:0, border:`1.5px solid ${bc}`, borderRadius:8,
+    padding:"9px 4px", fontSize:15, outline:"none", boxSizing:"border-box",
+    background:bg, textAlign:"center", textAlignLast:"center", touchAction:"manipulation"
   };
   const hours = Array.from({length:24},(_,i)=>i.toString().padStart(2,"0"));
   const minutes = Array.from({length:60/minuteStep},(_,i)=>(i*minuteStep).toString().padStart(2,"0"));
@@ -460,7 +460,8 @@ export default function App() {
       setCurrentUser(saved==="manager"?"manager":parseInt(saved));
       setShowLogin(false);
     }
-    const onFocus=()=>loadAll();
+    setSelectedEventId(null);
+    const onFocus=()=>{ loadAll(); };
     window.addEventListener("focus",onFocus);
     return ()=>window.removeEventListener("focus",onFocus);
   },[]);
@@ -709,8 +710,8 @@ export default function App() {
     badge:t=>({display:"inline-block",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:20,marginRight:5,
       background:t==="match"?"#dbeafe":t==="紅白戦"?"#fce7f3":"#dcfce7",
       color:t==="match"?"#1d4ed8":t==="紅白戦"?"#be185d":"#15803d"}),
-    btn:     {background:"#1e3a5f",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontSize:13,fontWeight:700,cursor:"pointer"},
-    btnSm:   {background:"#1e3a5f",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer"},
+    btn:     {background:"#1e3a5f",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontSize:13,fontWeight:700,cursor:"pointer",touchAction:"manipulation"},
+    btnSm:   {background:"#1e3a5f",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer",touchAction:"manipulation"},
     btnGhost:{background:"none",border:"1.5px solid #e2e8f0",color:"#475569",borderRadius:6,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer"},
     btnLine: {background:"#06C755",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontSize:13,fontWeight:700,cursor:"pointer"},
     inp:  {width:"100%",border:"1.5px solid #e2e8f0",borderRadius:8,padding:"9px 12px",fontSize:14,outline:"none",boxSizing:"border-box"},
@@ -993,16 +994,16 @@ export default function App() {
         return (
           <div key={ev.id} id={`ev-card-${ev.id}`} style={{...S.card,
             borderLeft:`4px solid ${ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":"#22c55e"}`,
-            cursor:"pointer",position:"relative",scrollMarginTop:"110px",
+            cursor:"pointer",position:"relative",scrollMarginTop:"110px",touchAction:"manipulation",
             ...(today?{boxShadow:"0 0 0 2px #ef4444, 0 1px 3px rgba(0,0,0,0.07)"}:
                 needAnswer?{boxShadow:"0 0 0 2px #fbbf24, 0 1px 3px rgba(0,0,0,0.07)"}:{})}}
             onClick={()=>{
               if(open){
-                // 解除時: そのカードを画面上部へ
                 setSelectedEventId(null);
-                setTimeout(()=>{document.getElementById(`ev-card-${ev.id}`)?.scrollIntoView({behavior:"smooth",block:"start"});},50);
               } else {
                 setSelectedEventId(ev.id);
+                // 展開した予定を画面上部へ
+                setTimeout(()=>{document.getElementById(`ev-card-${ev.id}`)?.scrollIntoView({behavior:"smooth",block:"start"});},60);
               }
             }}>
             {/* 今日/今週/未回答リボン */}
@@ -1314,7 +1315,10 @@ export default function App() {
         </div>
         <div style={{...S.tabs,gap:5,paddingBottom:10}}>
           {TABS.map(t=>(
-            <button key={t.key} style={{...S.tab(tab===t.key),position:"relative"}} onClick={()=>setTab(t.key)}>
+            <button key={t.key} style={{...S.tab(tab===t.key),position:"relative"}} onClick={()=>{
+              setTab(t.key);
+              if(t.key==="schedule"){ setSelectedEventId(null); setTimeout(()=>window.scrollTo({top:0}),0); }
+            }}>
               {t.label}
               {t.key==="schedule"&&myUnanswered>0&&(
                 <span style={{position:"absolute",top:2,right:6,background:"#ef4444",color:"#fff",
@@ -1428,20 +1432,22 @@ export default function App() {
                 <input style={reqStyle(newEvent.title)} placeholder="例: vs FC東京" value={newEvent.title} onChange={e=>setNE(p=>({...p,title:e.target.value}))}/>
               </div>
             </div>
-            <div style={{marginBottom:10}}>
-              <label style={reqLbl}>日付 *</label>
-              <input style={reqStyle(newEvent.date)} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
+            <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
+                <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <label style={reqLbl}>日付 *</label>
+                <input style={reqStyle(newEvent.date)} type="date" value={newEvent.date} onChange={e=>setNE(p=>({...p,date:e.target.value}))}/>
+              </div>
             </div>
-            <div style={{marginBottom:10}}>
-              <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
-              <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
-            </div>
-            <div style={S.row}>
-              <div style={{flex:1}}>
+            <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
+              <div style={{flex:1,minWidth:0}}>
                 <label style={reqLbl}>開始時間 *</label>
                 <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>({...p,timeFrom:v}))} required={!newEvent.timeFrom}/>
               </div>
-              <div style={{flex:1}}>
+              <div style={{flex:1,minWidth:0}}>
                 <label style={reqLbl}>終了時間 *</label>
                 <TimeSelect value={newEvent.timeTo} onChange={v=>setNE(p=>({...p,timeTo:v}))} required={!newEvent.timeTo}/>
               </div>
@@ -1488,11 +1494,11 @@ export default function App() {
             </div>
             <div style={{marginBottom:10}}>
               <label style={{...S.lbl,color:"#d97706"}}>⏰ 回答期限</label>
-              <div style={S.row}>
-                <div style={{flex:1.3}}>
+              <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                <div style={{flex:1,minWidth:0}}>
                   <input style={{...S.inp,borderColor:"#f59e0b",background:"#fffbeb"}} type="date" value={newEvent.deadline} onChange={e=>setNE(p=>({...p,deadline:e.target.value}))}/>
                 </div>
-                <div style={{flex:1}}>
+                <div style={{flex:1,minWidth:0}}>
                   <select style={{...S.sel,borderColor:"#f59e0b",background:"#fffbeb",textAlignLast:"center"}}
                     value={newEvent.deadlineTime} onChange={e=>setNE(p=>({...p,deadlineTime:e.target.value}))}>
                     <option value="">時刻なし</option>
