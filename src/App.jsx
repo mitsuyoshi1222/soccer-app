@@ -216,24 +216,36 @@ function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=fal
 
 function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotRot={}, onRotate, canDrag=false, moves=[], onMove }) {
   const [dragPid, setDragPid] = useState(null);
-  const [dragPos, setDragPos] = useState({x:0,y:0});
   const [hoverKey, setHoverKey] = useState(null);
   const pressRef = useRef(null);
   const justDraggedRef = useRef(false);
+  const ghostRef = useRef(null);
+  const hoverKeyRef = useRef(null);
 
-  // ドラッグ中: 指に追従＋ホバー先をハイライト
+  // ドラッグ中: ghostはrefで直接移動（再レンダリングを避けて滑らかに）、hoverは変化時のみ反映
   useEffect(()=>{
     if(dragPid===null) return;
+    let raf=null;
     const onMove=(e)=>{
-      setDragPos({x:e.clientX,y:e.clientY});
-      const el=document.elementFromPoint(e.clientX,e.clientY);
-      const slotEl=el&&el.closest("[data-slotkey]");
-      setHoverKey(slotEl?slotEl.getAttribute("data-slotkey"):null);
+      const x=e.clientX,y=e.clientY;
+      if(ghostRef.current){
+        ghostRef.current.style.left=(x-24)+"px";
+        ghostRef.current.style.top=(y-54)+"px";
+      }
+      if(raf) return;
+      raf=requestAnimationFrame(()=>{
+        raf=null;
+        const el=document.elementFromPoint(x,y-34);
+        const slotEl=el&&el.closest("[data-slotkey]");
+        const k=slotEl?slotEl.getAttribute("data-slotkey"):null;
+        if(k!==hoverKeyRef.current){ hoverKeyRef.current=k; setHoverKey(k); }
+      });
     };
-    const onUp=()=>{ setDragPid(null); setHoverKey(null); };
-    window.addEventListener("pointermove",onMove);
+    const onUp=()=>{ setDragPid(null); hoverKeyRef.current=null; setHoverKey(null); };
+    window.addEventListener("pointermove",onMove,{passive:true});
     window.addEventListener("pointerup",onUp);
     return ()=>{
+      if(raf) cancelAnimationFrame(raf);
       window.removeEventListener("pointermove",onMove);
       window.removeEventListener("pointerup",onUp);
     };
@@ -270,7 +282,7 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
     const x=e.clientX, y=e.clientY;
     pressRef.current = setTimeout(()=>{
       setDragPid(pid);
-      setDragPos({x,y});
+      requestAnimationFrame(()=>{ if(ghostRef.current){ ghostRef.current.style.left=(x-24)+"px"; ghostRef.current.style.top=(y-54)+"px"; } });
       if(navigator.vibrate) navigator.vibrate(30);
     }, 350);
   };
@@ -278,7 +290,7 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
   const handleUp = (e) => {
     cancelPress();
     if(dragPid!==null){
-      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const el = document.elementFromPoint(e.clientX, e.clientY-34);
       const slotEl = el && el.closest("[data-slotkey]");
       if(slotEl && onMove){
         const targetKey = slotEl.getAttribute("data-slotkey");
@@ -387,8 +399,8 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
         const p=slots[loc[0]][loc[1]].find(pl=>pl.id===dragPid);
         if(!p) return null;
         return (
-          <div style={{ position:"fixed",left:dragPos.x-26,top:dragPos.y-58,zIndex:1000,
-            pointerEvents:"none",transform:"scale(1.25)",
+          <div ref={ghostRef} style={{ position:"fixed",left:-999,top:-999,zIndex:1000,
+            pointerEvents:"none",transform:"scale(1.25)",willChange:"left,top",
             display:"flex",flexDirection:"column",alignItems:"center",
             background:"rgba(15,23,42,0.85)",borderRadius:9,padding:"6px 9px",
             boxShadow:"0 8px 24px rgba(0,0,0,0.45)",
@@ -409,10 +421,11 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
 // 紅白戦: 2チームを1つのドラッグコンテキストで扱い、チーム内移動＋チーム間移動の両方に対応
 function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], slotMoves=[], onChange, slotRot, onRotate }) {
   const [dragPid, setDragPid] = useState(null);
-  const [dragPos, setDragPos] = useState({x:0,y:0});
   const [hoverKey, setHoverKey] = useState(null);
   const pressRef = useRef(null);
   const justDraggedRef = useRef(false);
+  const ghostRef = useRef(null);
+  const hoverKeyRef = useRef(null);
 
   const moveMap = {}; teamMoves.forEach(([pid,team])=>{moveMap[pid]=team;});
   const red = [], white = [];
@@ -445,28 +458,35 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
 
   useEffect(()=>{
     if(dragPid===null) return;
+    let raf=null;
     const onMove=(e)=>{
-      setDragPos({x:e.clientX,y:e.clientY});
-      const el=document.elementFromPoint(e.clientX,e.clientY);
-      const slotEl=el&&el.closest("[data-slotkey]");
-      setHoverKey(slotEl?slotEl.getAttribute("data-slotkey"):null);
+      const x=e.clientX,y=e.clientY;
+      if(ghostRef.current){ ghostRef.current.style.left=(x-24)+"px"; ghostRef.current.style.top=(y-54)+"px"; }
+      if(raf) return;
+      raf=requestAnimationFrame(()=>{
+        raf=null;
+        const el=document.elementFromPoint(x,y-34);
+        const slotEl=el&&el.closest("[data-slotkey]");
+        const k=slotEl?slotEl.getAttribute("data-slotkey"):null;
+        if(k!==hoverKeyRef.current){ hoverKeyRef.current=k; setHoverKey(k); }
+      });
     };
-    const onUp=()=>{ setDragPid(null); setHoverKey(null); };
-    window.addEventListener("pointermove",onMove);
+    const onUp=()=>{ setDragPid(null); hoverKeyRef.current=null; setHoverKey(null); };
+    window.addEventListener("pointermove",onMove,{passive:true});
     window.addEventListener("pointerup",onUp);
-    return ()=>{ window.removeEventListener("pointermove",onMove); window.removeEventListener("pointerup",onUp); };
+    return ()=>{ if(raf)cancelAnimationFrame(raf); window.removeEventListener("pointermove",onMove); window.removeEventListener("pointerup",onUp); };
   },[dragPid]);
 
   const startPress = (e,pid)=>{
     if(!canDrag) return;
     const x=e.clientX,y=e.clientY;
-    pressRef.current=setTimeout(()=>{ setDragPid(pid); setDragPos({x,y}); if(navigator.vibrate)navigator.vibrate(30); },350);
+    pressRef.current=setTimeout(()=>{ setDragPid(pid); requestAnimationFrame(()=>{ if(ghostRef.current){ghostRef.current.style.left=(x-24)+"px";ghostRef.current.style.top=(y-54)+"px";} }); if(navigator.vibrate)navigator.vibrate(30); },350);
   };
   const cancelPress=()=>{ if(pressRef.current){clearTimeout(pressRef.current);pressRef.current=null;} };
   const handleUp=(e)=>{
     cancelPress();
     if(dragPid!==null){
-      const el=document.elementFromPoint(e.clientX,e.clientY);
+      const el=document.elementFromPoint(e.clientX,e.clientY-34);
       const slotEl=el&&el.closest("[data-slotkey]");
       if(slotEl&&onChange){
         const targetKey=slotEl.getAttribute("data-slotkey");
@@ -549,7 +569,7 @@ function RedWhiteField({ redPlayers, whitePlayers, fKey, canDrag, teamMoves=[], 
       <Team team="white" slots={whiteSlots} color="#475569" label="⚪ 白チーム"/>
       {canDrag&&<div style={{fontSize:10,color:"#94a3b8",textAlign:"center",marginTop:8}}>選手を長押し→枠で離すと配置変更／相手チームの枠で離すとチーム移動</div>}
       {dragPid!==null&&allById[dragPid]&&(
-        <div style={{position:"fixed",left:dragPos.x-24,top:dragPos.y-54,zIndex:1000,pointerEvents:"none",transform:"scale(1.25)",
+        <div ref={ghostRef} style={{position:"fixed",left:-999,top:-999,zIndex:1000,pointerEvents:"none",transform:"scale(1.25)",willChange:"left,top",
           display:"flex",flexDirection:"column",alignItems:"center",background:"rgba(15,23,42,0.85)",borderRadius:9,padding:"6px 9px",
           boxShadow:"0 8px 24px rgba(0,0,0,0.45)",border:"2px solid #fbbf24"}}>
           <div style={{width:26,height:26,borderRadius:"50%",background:teamOf(dragPid)==="red"?"#dc2626":"#475569",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:11}}>{allById[dragPid].number}</div>
@@ -570,6 +590,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   // ── Supabaseからデータ読み込み ──
+  const draggingRef = useRef(false);
   const loadAll = async () => {
     const [m,e,a,an,s,ph] = await Promise.all([
       supabase.from("members").select("*").order("number"),
@@ -589,17 +610,19 @@ export default function App() {
         place:r.place||"",mapUrl:r.map_url||"",note:r.note||"",
         playerCount:r.player_count||11,deadline:r.deadline||"",deadlineTime:r.deadline_time||"",
         uniform:r.uniform||"",formation:r.formation||""})));
-      // 管理者が保存した配置（手動移動）を復元
-      const fs={};
-      e.data.forEach(r=>{
-        if(r.field_moves){
-          try{
-            const obj=JSON.parse(r.field_moves);
-            Object.entries(obj).forEach(([k,v])=>{ fs[`${r.id}|${k}`]=v; });
-          }catch(err){}
-        }
-      });
-      setFieldSwaps(fs);
+      // 管理者が保存した配置（手動移動）を復元（ドラッグ操作中は上書きしない）
+      if(!draggingRef.current){
+        const fs={};
+        e.data.forEach(r=>{
+          if(r.field_moves){
+            try{
+              const obj=JSON.parse(r.field_moves);
+              Object.entries(obj).forEach(([k,v])=>{ fs[`${r.id}|${k}`]=v; });
+            }catch(err){}
+          }
+        });
+        setFieldSwaps(fs);
+      }
     }
     if(a.data){
       const att={};
@@ -629,7 +652,16 @@ export default function App() {
     setSelectedEventId(null);
     const onFocus=()=>{ loadAll(); };
     window.addEventListener("focus",onFocus);
-    return ()=>window.removeEventListener("focus",onFocus);
+    // リアルタイム購読: 誰かがDBを変更したら全員が自動で最新に
+    const channel = supabase
+      .channel("teamapp-changes")
+      .on("postgres_changes",{event:"*",schema:"public",table:"events"},()=>loadAll())
+      .on("postgres_changes",{event:"*",schema:"public",table:"attendance"},()=>loadAll())
+      .on("postgres_changes",{event:"*",schema:"public",table:"members"},()=>loadAll())
+      .on("postgres_changes",{event:"*",schema:"public",table:"announcements"},()=>loadAll())
+      .on("postgres_changes",{event:"*",schema:"public",table:"settings"},()=>loadAll())
+      .subscribe();
+    return ()=>{ window.removeEventListener("focus",onFocus); supabase.removeChannel(channel); };
   },[]);
 
   const saveSettings = async (patch) => {
