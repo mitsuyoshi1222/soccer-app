@@ -601,15 +601,21 @@ export default function App() {
       supabase.from("place_history").select("*").order("created_at",{ascending:false}),
     ]);
     if(ph.data) setPlaceHistory(ph.data.map(r=>({id:r.id,place:r.place,mapUrl:r.map_url||""})));
-    if(m.data) setMembers(m.data.map(r=>({id:r.id,name:r.name,number:r.number,
-      pos1:r.pos1||"",pos2:r.pos2||"",pos3:r.pos3||"",
-      side1:r.side1||"",side2:r.side2||"",side3:r.side3||""})));
+    if(m.data){
+      const mp=(r)=>({id:r.id,name:r.name,number:r.number,
+        pos1:r.pos1||"",pos2:r.pos2||"",pos3:r.pos3||"",
+        side1:r.side1||"",side2:r.side2||"",side3:r.side3||""});
+      setMembers(m.data.filter(r=>!r.deleted).map(mp));
+      setTrashMembers(m.data.filter(r=>r.deleted).map(mp));
+    }
     if(e.data){
-      setEvents(e.data.map(r=>({id:r.id,type:r.type,title:r.title,date:r.date,
+      const ep=(r)=>({id:r.id,type:r.type,title:r.title,date:r.date,
         timeFrom:r.time_from||"",timeTo:r.time_to||"",meetTime:r.meet_time||"",
         place:r.place||"",mapUrl:r.map_url||"",note:r.note||"",
         playerCount:r.player_count||11,deadline:r.deadline||"",deadlineTime:r.deadline_time||"",
-        uniform:r.uniform||"",formation:r.formation||""})));
+        uniform:r.uniform||"",formation:r.formation||""});
+      setEvents(e.data.filter(r=>!r.deleted).map(ep));
+      setTrashEvents(e.data.filter(r=>r.deleted).map(ep));
       // 管理者が保存した配置（手動移動）を復元（ドラッグ操作中は上書きしない）
       if(!draggingRef.current){
         const fs={};
@@ -632,9 +638,14 @@ export default function App() {
       });
       setAttendance(att);
     }
-    if(an.data) setAnnouncements(an.data.map(r=>({id:r.id,date:r.date,title:r.title,body:r.body})));
+    if(an.data){
+      const ap=(r)=>({id:r.id,date:r.date,title:r.title,body:r.body});
+      setAnnouncements(an.data.filter(r=>!r.deleted).map(ap));
+      setTrashAnns(an.data.filter(r=>r.deleted).map(ap));
+    }
     if(s.data){
       setTeamName(s.data.team_name||"チームマネージャー");
+      setTeamOrigin(s.data.team_origin||"COMPANERO_DEFAULT");
       setLogoUrl(s.data.logo_url||null);
       setAdmins((s.data.admins||"").split(",").filter(Boolean));
     }
@@ -674,6 +685,9 @@ export default function App() {
   const [logoUrl, setLogoUrl] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editTeamName, setEditTeamName] = useState("");
+  const [teamOrigin, setTeamOrigin] = useState("");
+  const [editTeamOrigin, setEditTeamOrigin] = useState("");
+  const [showOrigin, setShowOrigin] = useState(false);
   const [newAdminName, setNewAdminName] = useState("");
   const logoInputRef = useRef();
 
@@ -726,6 +740,10 @@ export default function App() {
   const [posData,   setPD] = useState(blankPos);
   const [placeHistory, setPlaceHistory] = useState([]);
   const [showReqError, setShowReqError] = useState(false);
+  const [trashEvents, setTrashEvents] = useState([]);
+  const [trashMembers, setTrashMembers] = useState([]);
+  const [trashAnns, setTrashAnns] = useState([]);
+  const [showTrash, setShowTrash] = useState(false);
 
   const isManager = currentUser === "manager";
   const TABS = [
@@ -792,8 +810,10 @@ export default function App() {
     }).eq("id",id);
   };
   const deleteMember = async id => {
-    setMembers(p=>p.filter(m=>m.id!==id));
-    await supabase.from("members").delete().eq("id",id);
+    const m=members.find(x=>x.id===id);
+    setMembers(p=>p.filter(x=>x.id!==id));
+    if(m) setTrashMembers(p=>[m,...p]);
+    await supabase.from("members").update({deleted:true}).eq("id",id);
   };
   const savePosition = async () => {
     if(!currentUser||isManager) return;
@@ -860,8 +880,10 @@ export default function App() {
     }
   };
   const deleteEvent = async id => {
-    setEvents(p=>p.filter(e=>e.id!==id));
-    await supabase.from("events").delete().eq("id",id);
+    const e=events.find(x=>x.id===id);
+    setEvents(p=>p.filter(x=>x.id!==id));
+    if(e) setTrashEvents(p=>[e,...p]);
+    await supabase.from("events").update({deleted:true}).eq("id",id);
   };
   const addAnn = async () => {
     if(!newAnn.title) return;
@@ -872,9 +894,18 @@ export default function App() {
     if(data) setAnnouncements(p=>[{...draft,id:data.id},...p]);
   };
   const deleteAnn = async id => {
-    setAnnouncements(p=>p.filter(a=>a.id!==id));
-    await supabase.from("announcements").delete().eq("id",id);
+    const a=announcements.find(x=>x.id===id);
+    setAnnouncements(p=>p.filter(x=>x.id!==id));
+    if(a) setTrashAnns(p=>[a,...p]);
+    await supabase.from("announcements").update({deleted:true}).eq("id",id);
   };
+  // ── 復元・完全削除 ──
+  const restoreEvent = async (e)=>{ setTrashEvents(p=>p.filter(x=>x.id!==e.id)); setEvents(p=>[...p,e]); await supabase.from("events").update({deleted:false}).eq("id",e.id); };
+  const restoreMember = async (m)=>{ setTrashMembers(p=>p.filter(x=>x.id!==m.id)); setMembers(p=>[...p,m]); await supabase.from("members").update({deleted:false}).eq("id",m.id); };
+  const restoreAnn = async (a)=>{ setTrashAnns(p=>p.filter(x=>x.id!==a.id)); setAnnouncements(p=>[a,...p]); await supabase.from("announcements").update({deleted:false}).eq("id",a.id); };
+  const purgeEvent = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashEvents(p=>p.filter(x=>x.id!==id)); await supabase.from("events").delete().eq("id",id); };
+  const purgeMember = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashMembers(p=>p.filter(x=>x.id!==id)); await supabase.from("members").delete().eq("id",id); };
+  const purgeAnn = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashAnns(p=>p.filter(x=>x.id!==id)); await supabase.from("announcements").delete().eq("id",id); };
   const reminderText = evId => {
     const ev=events.find(e=>e.id===evId);
     const unans=getByStatus(evId,"未回答");
@@ -932,7 +963,24 @@ export default function App() {
       {logoUrl?<img src={logoUrl} alt="logo" style={{width:64,height:64,borderRadius:12,objectFit:"cover",marginBottom:8}}/>
         :<div style={{fontSize:52,marginBottom:8}}>⚽</div>}
       <div style={{fontSize:22,fontWeight:800,color:"#0f172a",marginBottom:4}}>{teamName}</div>
-      <div style={{fontSize:13,color:"#94a3b8",marginBottom:28}}>Team Manager</div>
+      <div style={{fontSize:13,color:"#94a3b8",marginBottom:10}}>Team Manager</div>
+      {(()=>{
+        const origin=teamOrigin==="COMPANERO_DEFAULT"?"「companero（コンパネーロ）」とは、スペイン語で「仲間」「同志」を意味する言葉です。マコさんの仲間・同志が集うチームでありたいという想いを込めて、「マコさん」の頭文字「Ma」と、仲間・同志を表す「companero」を組み合わせ、「Ma.companero FC」と名付けました。":teamOrigin;
+        if(!origin) return <div style={{marginBottom:28}}/>;
+        return (
+          <div style={{maxWidth:380,marginBottom:24}}>
+            <button onClick={()=>setShowOrigin(v=>!v)}
+              style={{background:"none",border:"none",color:"#3b82f6",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>
+              {showOrigin?"チーム名の由来を閉じる":"ℹ️ チーム名の由来"}
+            </button>
+            {showOrigin&&(
+              <div style={{marginTop:8,fontSize:12,color:"#64748b",lineHeight:1.7,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:10,padding:"12px 14px",textAlign:"left"}}>
+                {origin}
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <div style={{width:"100%",maxWidth:380}}>
         {/* 管理者 */}
         <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:8}}>▼ 管理者としてログイン</div>
@@ -1525,7 +1573,7 @@ export default function App() {
           </div>
           <div style={{display:"flex",gap:6}}>
             {isManager&&<button style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,padding:"6px 10px",color:"#94a3b8",fontSize:12,cursor:"pointer"}}
-              onClick={()=>{setEditTeamName(teamName);setShowSettings(true);}}>⚙️</button>}
+              onClick={()=>{setEditTeamName(teamName);setEditTeamOrigin(teamOrigin==="COMPANERO_DEFAULT"?"「companero（コンパネーロ）」とは、スペイン語で「仲間」「同志」を意味する言葉です。マコさんの仲間・同志が集うチームでありたいという想いを込めて、「マコさん」の頭文字「Ma」と、仲間・同志を表す「companero」を組み合わせ、「Ma.companero FC」と名付けました。":teamOrigin);setShowSettings(true);}}>⚙️</button>}
             <button style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:8,padding:"6px 10px",color:"#e2e8f0",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}
               onClick={()=>{localStorage.removeItem("teamapp_user");setShowLogin(true);}}>
               👤 ログイン切替
@@ -1567,6 +1615,12 @@ export default function App() {
               <label style={S.lbl}>チーム名</label>
               <input style={S.inp} value={editTeamName} onChange={e=>setEditTeamName(e.target.value)}/>
             </div>
+            <div style={{marginBottom:14}}>
+              <label style={S.lbl}>チーム名の由来（ログイン画面に表示）</label>
+              <textarea style={{...S.inp,minHeight:90,resize:"vertical",lineHeight:1.6}}
+                value={editTeamOrigin} onChange={e=>setEditTeamOrigin(e.target.value)}
+                placeholder="チーム名の由来を入力"/>
+            </div>
             <div style={{marginBottom:16}}>
               <label style={S.lbl}>ロゴ画像</label>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -1591,14 +1645,82 @@ export default function App() {
                 <button style={S.btnSm} onClick={()=>{if(newAdminName){const next=[...admins,newAdminName];setAdmins(next);setNewAdminName("");saveSettings({admins:next.join(",")});}}}>追加</button>
               </div>
             </div>
+            {/* ゴミ箱 */}
+            <div style={{marginBottom:16,paddingTop:14,borderTop:"1px solid #e2e8f0"}}>
+              <label style={S.lbl}>🗑️ ゴミ箱</label>
+              <div style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>削除したイベント・メンバー・お知らせを復元できます</div>
+              <button style={{...S.btnGhost,width:"100%"}} onClick={()=>{setShowSettings(false);setShowTrash(true);}}>
+                ゴミ箱をひらく（{trashEvents.length+trashMembers.length+trashAnns.length}件）
+              </button>
+            </div>
             <div style={{display:"flex",gap:8}}>
               <button style={{...S.btn,flex:1}} onClick={()=>{
                 setTeamName(editTeamName);
-                saveSettings({team_name:editTeamName,logo_url:logoUrl||"",admins:admins.join(",")});
+                setTeamOrigin(editTeamOrigin);
+                saveSettings({team_name:editTeamName,team_origin:editTeamOrigin,logo_url:logoUrl||"",admins:admins.join(",")});
                 setShowSettings(false);
               }}>保存</button>
               <button style={{...S.btnGhost,flex:1}} onClick={()=>setShowSettings(false)}>キャンセル</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ゴミ箱 */}
+      {showTrash&&(
+        <div style={S.modal} onClick={()=>setShowTrash(false)}>
+          <div style={S.mbox} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:4}}>🗑️ ゴミ箱</div>
+            <div style={{fontSize:11,color:"#94a3b8",marginBottom:16}}>「戻す」で復元、「完全削除」で永久に消去します</div>
+
+            {/* イベント */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,marginBottom:8,color:"#475569"}}>📅 イベント（{trashEvents.length}）</div>
+              {trashEvents.length===0&&<div style={{fontSize:12,color:"#cbd5e1"}}>なし</div>}
+              {trashEvents.map(e=>(
+                <div key={e.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"8px 10px",background:"#f8fafc",borderRadius:8}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
+                    <div style={{fontSize:11,color:"#94a3b8"}}>{e.date}</div>
+                  </div>
+                  <button style={{...S.btnSm,background:"#22c55e"}} onClick={()=>restoreEvent(e)}>戻す</button>
+                  <button style={{...S.btnSm,background:"#ef4444"}} onClick={()=>purgeEvent(e.id)}>完全削除</button>
+                </div>
+              ))}
+            </div>
+
+            {/* メンバー */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,marginBottom:8,color:"#475569"}}>👥 メンバー（{trashMembers.length}）</div>
+              {trashMembers.length===0&&<div style={{fontSize:12,color:"#cbd5e1"}}>なし</div>}
+              {trashMembers.map(m=>(
+                <div key={m.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"8px 10px",background:"#f8fafc",borderRadius:8}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600}}>{m.number?`#${m.number} `:""}{m.name}</div>
+                  </div>
+                  <button style={{...S.btnSm,background:"#22c55e"}} onClick={()=>restoreMember(m)}>戻す</button>
+                  <button style={{...S.btnSm,background:"#ef4444"}} onClick={()=>purgeMember(m.id)}>完全削除</button>
+                </div>
+              ))}
+            </div>
+
+            {/* お知らせ */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,marginBottom:8,color:"#475569"}}>📢 お知らせ（{trashAnns.length}）</div>
+              {trashAnns.length===0&&<div style={{fontSize:12,color:"#cbd5e1"}}>なし</div>}
+              {trashAnns.map(a=>(
+                <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"8px 10px",background:"#f8fafc",borderRadius:8}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.title}</div>
+                    <div style={{fontSize:11,color:"#94a3b8"}}>{a.date}</div>
+                  </div>
+                  <button style={{...S.btnSm,background:"#22c55e"}} onClick={()=>restoreAnn(a)}>戻す</button>
+                  <button style={{...S.btnSm,background:"#ef4444"}} onClick={()=>purgeAnn(a.id)}>完全削除</button>
+                </div>
+              ))}
+            </div>
+
+            <button style={{...S.btnGhost,width:"100%"}} onClick={()=>setShowTrash(false)}>閉じる</button>
           </div>
         </div>
       )}
