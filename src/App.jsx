@@ -780,12 +780,12 @@ export default function App() {
     {key:"members",label:"👥 メンバー"},
   ];
   const jstDateStr = (d=new Date()) => {
-    // 日本時間(UTC+9)での YYYY-MM-DD
-    const jst = new Date(d.getTime() + (9*60 - d.getTimezoneOffset())*60000);
+    // 日本時間(UTC+9)での YYYY-MM-DD（端末のタイムゾーンに依存しない）
+    const jst = new Date(d.getTime() + 9*60*60000);
     return jst.toISOString().slice(0,10);
   };
   const todayStr = jstDateStr();
-  const weekEndStr = (()=>{ const now=new Date(); const jst=new Date(now.getTime()+(9*60-now.getTimezoneOffset())*60000); const diff=7-jst.getUTCDay(); jst.setUTCDate(jst.getUTCDate()+diff); return jst.toISOString().slice(0,10); })();
+  const weekEndStr = (()=>{ const now=new Date(); const jst=new Date(now.getTime()+9*60*60000); const diff=7-jst.getUTCDay(); jst.setUTCDate(jst.getUTCDate()+diff); return jst.toISOString().slice(0,10); })();
   const isToday = (ev)=>ev.date===todayStr;
   const isThisWeek = (ev)=>ev.date>todayStr&&ev.date<=weekEndStr;
   const sortedEvents = [...events]
