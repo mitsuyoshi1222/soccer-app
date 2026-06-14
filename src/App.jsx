@@ -719,7 +719,7 @@ export default function App() {
   const rotateSlot = (key) => setSlotRot(p=>({...p,[key]:(p[key]||0)+1}));
   const [fieldSwaps, setFieldSwaps] = useState({});
   const [formationSel, setFormationSel] = useState({});
-  const persistMoves = (evId, all) => {
+  const persistMoves = async (evId, all) => {
     // 管理者の配置のみDBに保存
     if(currentUser!=="manager") return;
     lastLocalSaveRef.current = Date.now();
@@ -727,7 +727,8 @@ export default function App() {
     Object.entries(all).forEach(([k,v])=>{
       if(k.startsWith(`${evId}|`)) obj[k.slice(`${evId}|`.length)]=v;
     });
-    supabase.from("events").update({field_moves:JSON.stringify(obj)}).eq("id",evId);
+    const { error } = await supabase.from("events").update({field_moves:JSON.stringify(obj)}).eq("id",evId);
+    if(error){ alert("配置の保存に失敗しました: "+error.message); }
   };
   const addSwap = (key,pid,slotKey) => setFieldSwaps(p=>{
     // 同じ選手の過去の配置指定を除去してから新しい位置を追加（絶対配置・最新優先）
@@ -736,12 +737,13 @@ export default function App() {
     persistMoves(parseInt(key.split("|")[0]), next);
     return next;
   });
-  const selectFormation = (evId,k) => {
+  const selectFormation = async (evId,k) => {
     setFormationSel(p=>({...p,[evId]:k}));
     if(currentUser==="manager"){
       lastLocalSaveRef.current = Date.now();
       setEvents(p=>p.map(e=>e.id===evId?{...e,formation:k}:e));
-      supabase.from("events").update({formation:k}).eq("id",evId);
+      const { error } = await supabase.from("events").update({formation:k}).eq("id",evId);
+      if(error){ alert("フォーメーションの保存に失敗しました: "+error.message); }
     }
   };
   const [showAddMember, setShowAddMember] = useState(false);
