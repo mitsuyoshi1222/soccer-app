@@ -1408,7 +1408,7 @@ export default function App() {
                 {ATT_STATUSES.map(st=><AttGroup key={st} evId={ev.id} status={st}/>)}
                 <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
                   <button style={{...S.btnSm,background:"#166534",flex:1}}
-                    onClick={()=>{setFormationEvId(ev.id);setTab("formation");}}>
+                    onClick={()=>{setFormationEvId(ev.id);setTab("formation");if(!isManager)setFormationSel({});}}>
                     ⚽ フォーメーションを確認
                   </button>
                   {isManager&&(
@@ -1485,7 +1485,7 @@ export default function App() {
     const targetCount = ev.playerCount<=8?8:ev.playerCount;
     const availF=Object.entries(FORMATIONS).filter(([,f])=>f.min===targetCount);
     const pickable=(k)=>k&&availF.some(([kk])=>kk===k);
-    const fKey = (isManager && pickable(formationSel[ev.id])) ? formationSel[ev.id]
+    const fKey = pickable(formationSel[ev.id]) ? formationSel[ev.id]
                : pickable(ev.formation) ? ev.formation
                : availF[0]?.[0]||"4-3-3";
     return (
@@ -1493,26 +1493,19 @@ export default function App() {
         <div style={{fontSize:15,fontWeight:700,marginBottom:10}}>フォーメーション</div>
         <div style={S.card}>
           <label style={S.lbl}>イベントを選択</label>
-          <select style={S.sel} value={formationEvId} onChange={e=>setFormationEvId(parseInt(e.target.value))}>
+          <select style={S.sel} value={formationEvId} onChange={e=>{setFormationEvId(parseInt(e.target.value));if(!isManager)setFormationSel({});}}>
             {events.map(e=><option key={e.id} value={e.id}>{e.date.slice(5).replace("-","/")} {e.title}（{e.playerCount}人制）</option>)}
           </select>
         </div>
         <div style={S.card}>
-          <label style={S.lbl}>フォーメーション{!isManager&&<span style={{color:"#94a3b8",fontWeight:400}}>（管理者が設定）</span>}</label>
+          <label style={S.lbl}>フォーメーション{!isManager&&<span style={{color:"#94a3b8",fontWeight:400}}>（お試し変更可・保存は管理者のみ）</span>}</label>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {availF.map(([k,f])=>(
-              isManager ? (
-                <button key={k} onClick={()=>selectFormation(ev.id,k)}
-                  style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:fKey===k?700:500,cursor:"pointer",
-                    background:fKey===k?"#1e3a5f":"#f1f5f9",color:fKey===k?"#fff":"#475569",border:"none"}}>
-                  {f.label}
-                </button>
-              ) : (
-                fKey===k ? (
-                  <span key={k} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:700,
-                    background:"#1e3a5f",color:"#fff"}}>{f.label}</span>
-                ) : null
-              )
+              <button key={k} onClick={()=>selectFormation(ev.id,k)}
+                style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:fKey===k?700:500,cursor:"pointer",
+                  background:fKey===k?"#1e3a5f":"#f1f5f9",color:fKey===k?"#fff":"#475569",border:"none"}}>
+                {f.label}
+              </button>
             ))}
           </div>
         </div>
@@ -1650,6 +1643,7 @@ export default function App() {
             <button key={t.key} style={{...S.tab(tab===t.key),position:"relative"}} onClick={()=>{
               setTab(t.key);
               if(t.key==="schedule"){ setSelectedEventId(null); setTimeout(()=>window.scrollTo({top:0}),0); }
+              if(t.key==="formation" && !isManager){ setFormationSel({}); }
             }}>
               {t.label}
               {t.key==="schedule"&&myUnanswered>0&&(
