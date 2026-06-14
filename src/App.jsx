@@ -1485,7 +1485,7 @@ export default function App() {
     const targetCount = ev.playerCount<=8?8:ev.playerCount;
     const availF=Object.entries(FORMATIONS).filter(([,f])=>f.min===targetCount);
     const pickable=(k)=>k&&availF.some(([kk])=>kk===k);
-    const fKey = pickable(formationSel[ev.id]) ? formationSel[ev.id]
+    const fKey = (isManager && pickable(formationSel[ev.id])) ? formationSel[ev.id]
                : pickable(ev.formation) ? ev.formation
                : availF[0]?.[0]||"4-3-3";
     return (
@@ -1498,14 +1498,21 @@ export default function App() {
           </select>
         </div>
         <div style={S.card}>
-          <label style={S.lbl}>フォーメーション{!isManager&&<span style={{color:"#94a3b8",fontWeight:400}}>（お試し変更可・保存は管理者のみ）</span>}</label>
+          <label style={S.lbl}>フォーメーション{!isManager&&<span style={{color:"#94a3b8",fontWeight:400}}>（管理者が設定）</span>}</label>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {availF.map(([k,f])=>(
-              <button key={k} onClick={()=>selectFormation(ev.id,k)}
-                style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:fKey===k?700:500,cursor:"pointer",
-                  background:fKey===k?"#1e3a5f":"#f1f5f9",color:fKey===k?"#fff":"#475569",border:"none"}}>
-                {f.label}
-              </button>
+              isManager ? (
+                <button key={k} onClick={()=>selectFormation(ev.id,k)}
+                  style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:fKey===k?700:500,cursor:"pointer",
+                    background:fKey===k?"#1e3a5f":"#f1f5f9",color:fKey===k?"#fff":"#475569",border:"none"}}>
+                  {f.label}
+                </button>
+              ) : (
+                fKey===k ? (
+                  <span key={k} style={{padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:700,
+                    background:"#1e3a5f",color:"#fff"}}>{f.label}</span>
+                ) : null
+              )
             ))}
           </div>
         </div>
