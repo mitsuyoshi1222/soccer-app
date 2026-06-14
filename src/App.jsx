@@ -1039,7 +1039,7 @@ export default function App() {
         <div style={{fontSize:12,fontWeight:700,color:"#64748b",marginBottom:8}}>▼ 管理者としてログイン</div>
         {admins.map((name,i)=>(
           <div key={i} style={{...S.card,cursor:"pointer",borderLeft:"4px solid #f59e0b",marginBottom:8,display:"flex",alignItems:"center",gap:10}}
-            onClick={()=>{setCurrentUser("manager");localStorage.setItem("teamapp_user","manager");setShowLogin(false);setTab("schedule");setSelectedEventId(null);setTimeout(()=>window.scrollTo({top:0}),0);}}>
+            onClick={()=>{setCurrentUser("manager");localStorage.setItem("teamapp_user","manager");setShowLogin(false);setTab("schedule");setSelectedEventId(null);setFormationSel({});setTimeout(()=>window.scrollTo({top:0}),0);}}>
             <span style={{fontSize:18}}>👑</span>
             <div>
               <div style={{fontWeight:700,fontSize:14}}>{name}</div>
@@ -1055,6 +1055,7 @@ export default function App() {
             <div key={m.id} style={{...S.card,display:"flex",alignItems:"center",gap:12,cursor:"pointer",marginBottom:8}}
               onClick={()=>{
                 setCurrentUser(m.id);
+                setFormationSel({});
                 if(noPos){ setPD({pos1:"",pos2:"",pos3:"",side1:"",side2:"",side3:""}); setShowPositionPrompt(true); }
                 localStorage.setItem("teamapp_user",String(m.id));
                 setShowLogin(false);
@@ -1633,7 +1634,7 @@ export default function App() {
             {isManager&&<button style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,padding:"6px 10px",color:"#94a3b8",fontSize:12,cursor:"pointer"}}
               onClick={()=>{setEditTeamName(teamName);setEditTeamOrigin(teamOrigin==="COMPANERO_DEFAULT"?"「companero（コンパネーロ）」とは、スペイン語で「仲間」「同志」を意味する言葉です。マコさんの仲間・同志が集うチームでありたいという想いを込めて、「マコさん」の頭文字「Ma」と、仲間・同志を表す「companero」を組み合わせ、「Ma.companero FC」と名付けました。":teamOrigin);setShowSettings(true);}}>⚙️</button>}
             <button style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:8,padding:"6px 10px",color:"#e2e8f0",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}
-              onClick={()=>{localStorage.removeItem("teamapp_user");setShowLogin(true);}}>
+              onClick={()=>{localStorage.removeItem("teamapp_user");setFormationSel({});setShowLogin(true);}}>
               👤 ログイン切替
             </button>
           </div>
