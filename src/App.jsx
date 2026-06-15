@@ -185,8 +185,11 @@ function splitTeams(players) {
 }
 
 // 時間選択（時・分を別スクロール、タッチで12:00から開始）
-function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=false }) {
-  const [h,m] = value ? value.split(":") : ["",""];
+function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=false, defaultHour=12 }) {
+  // 未設定のときは defaultHour:00 を「選択中」として表示（チェックがそこに乗る）。
+  // 実際の保存は、ユーザーがどちらかを操作した時点で行う。
+  const dh = defaultHour.toString().padStart(2,"0");
+  const [h,m] = value ? value.split(":") : [dh,"00"];
   const bg = required ? "#fef2f2" : accent ? "#fffbeb" : "#fff";
   const bc = required ? "#fca5a5" : accent ? "#f59e0b" : "#e2e8f0";
   const selStyle = {
@@ -196,18 +199,15 @@ function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=fal
   };
   const hours = Array.from({length:24},(_,i)=>i.toString().padStart(2,"0"));
   const minutes = Array.from({length:60/minuteStep},(_,i)=>(i*minuteStep).toString().padStart(2,"0"));
-  const focusInit = () => { if(!value) onChange("12:00"); };
   return (
     <div style={{display:"flex",gap:4,alignItems:"center"}}>
-      <select style={selStyle} value={h} onFocus={focusInit}
-        onChange={e=>onChange(e.target.value===""?"":`${e.target.value}:${m||"00"}`)}>
-        <option value="">--</option>
+      <select style={selStyle} value={h}
+        onChange={e=>onChange(`${e.target.value}:${m}`)}>
         {hours.map(hh=><option key={hh} value={hh}>{hh}</option>)}
       </select>
       <span style={{fontWeight:700,color:"#64748b"}}>:</span>
-      <select style={selStyle} value={m} onFocus={focusInit}
-        onChange={e=>onChange(`${h||"12"}:${e.target.value||"00"}`)}>
-        <option value="">--</option>
+      <select style={selStyle} value={m}
+        onChange={e=>onChange(`${h}:${e.target.value}`)}>
         {minutes.map(mm=><option key={mm} value={mm}>{mm}</option>)}
       </select>
     </div>
@@ -897,7 +897,7 @@ export default function App() {
     if(!newEvent.type||!newEvent.title||!newEvent.date||!newEvent.timeFrom||!newEvent.timeTo||!newEvent.place){
       setShowReqError(true);
       // モーダル内を最上部へスクロール
-      setTimeout(()=>{document.getElementById("event-modal-top")?.scrollIntoView({behavior:"smooth",block:"start"});},0);
+      setTimeout(()=>{const mb=document.getElementById("event-mbox"); if(mb) mb.scrollTo({top:0,behavior:"smooth"});},0);
       return;
     }
     setShowReqError(false);
@@ -1815,7 +1815,7 @@ export default function App() {
       {/* イベント追加 */}
       {showAddEvent&&(
         <div style={S.modal} onClick={()=>setShowAddEvent(false)}>
-          <div style={S.mbox} onClick={e=>e.stopPropagation()}>
+          <div id="event-mbox" style={S.mbox} onClick={e=>e.stopPropagation()}>
             <div style={{fontSize:16,fontWeight:800,marginBottom:14}}>{editEventId?"イベント編集":"イベント追加"}</div>
             {showReqError&&(
               <div style={{background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:12,color:"#dc2626",fontWeight:600}}>
@@ -1841,16 +1841,16 @@ export default function App() {
               </div>
               <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
-                <TimeSelect value={newEvent.meetTime} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
+                <TimeSelect value={newEvent.meetTime} defaultHour={12} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
               </div>
             </div>
             <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
               <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={reqLbl}>開始時間 *</label>
-                <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>{
+                <TimeSelect value={newEvent.timeFrom} defaultHour={12} onChange={v=>setNE(p=>{
                   const next={...p,timeFrom:v};
-                  // 終了時間が未設定なら開始+2時間を自動セット
-                  if(v&&!p.timeTo){
+                  // 開始を設定/変更したら、終了を常に開始+2時間に追従させる
+                  if(v){
                     const [hh,mm]=v.split(":").map(Number);
                     const eh=((hh+2)%24).toString().padStart(2,"0");
                     next.timeTo=`${eh}:${mm.toString().padStart(2,"0")}`;
@@ -1860,7 +1860,7 @@ export default function App() {
               </div>
               <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={reqLbl}>終了時間 *</label>
-                <TimeSelect value={newEvent.timeTo} onChange={v=>setNE(p=>({...p,timeTo:v}))} required={!newEvent.timeTo}/>
+                <TimeSelect value={newEvent.timeTo} defaultHour={newEvent.timeFrom?(((parseInt(newEvent.timeFrom.split(":")[0])+2)%24)):14} onChange={v=>setNE(p=>({...p,timeTo:v}))} required={!newEvent.timeTo}/>
               </div>
             </div>
             <div style={{marginBottom:10}}>
