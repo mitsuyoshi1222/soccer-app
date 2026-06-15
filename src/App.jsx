@@ -759,7 +759,7 @@ export default function App() {
   const [showPositionPrompt, setShowPositionPrompt] = useState(false);
 
   const blankMember = { name:"",number:"" };
-  const blankEvent  = { type:"match",title:"",date:"",timeFrom:"",timeTo:"",place:"",mapUrl:"",note:"",playerCount:11,deadline:"",deadlineTime:"",meetTime:"",uniform:"" };
+  const blankEvent  = { type:"match",title:"",date:"",timeFrom:"12:00",timeTo:"14:00",place:"",mapUrl:"",note:"",playerCount:11,deadline:"",deadlineTime:"",meetTime:"",uniform:"" };
   const blankAnn    = { title:"",body:"" };
   const blankPos    = { pos1:"",pos2:"",pos3:"",side1:"",side2:"",side3:"" };
   const [newMember, setNM] = useState(blankMember);
@@ -964,8 +964,7 @@ export default function App() {
     if(ev.uniform) lines.push(`👕 ${ev.uniform.split(",").join("・")}`);
     if(ev.deadline) lines.push(`⏰ 回答期限 ${parseInt(ev.deadline.slice(5,7))}/${parseInt(ev.deadline.slice(8,10))}${ev.deadlineTime?` ${ev.deadlineTime}`:""}`);
     lines.push("");
-    lines.push("▼出欠はこちら");
-    lines.push(window.location.origin);
+    lines.push("アプリから出欠の入力をお願いします🙏");
     return lines.join("\n");
   };
   const reminderText = evId => {
