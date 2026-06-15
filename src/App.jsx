@@ -617,8 +617,10 @@ export default function App() {
       const mp=(r)=>({id:r.id,name:r.name,number:r.number,
         pos1:r.pos1||"",pos2:r.pos2||"",pos3:r.pos3||"",
         side1:r.side1||"",side2:r.side2||"",side3:r.side3||""});
-      setMembers(m.data.filter(r=>!r.deleted).map(mp));
-      setTrashMembers(m.data.filter(r=>r.deleted).map(mp));
+      if(Date.now()-lastLocalSaveRef.current > 2500){
+        setMembers(m.data.filter(r=>!r.deleted).map(mp));
+        setTrashMembers(m.data.filter(r=>r.deleted).map(mp));
+      }
     }
     if(e.data){
       const ep=(r)=>({id:r.id,type:r.type,title:r.title,date:r.date,
@@ -627,16 +629,10 @@ export default function App() {
         playerCount:r.player_count||11,deadline:r.deadline||"",deadlineTime:r.deadline_time||"",
         uniform:r.uniform||"",formation:r.formation||""});
       const freshEvents=e.data.filter(r=>!r.deleted).map(ep);
-      if(Date.now()-lastLocalSaveRef.current <= 2500){
-        // 保存直後: formationフィールドだけは自分のローカル値を維持
-        setEvents(prev=>freshEvents.map(fe=>{
-          const local=prev.find(x=>x.id===fe.id);
-          return local?{...fe,formation:local.formation}:fe;
-        }));
-      } else {
+      if(Date.now()-lastLocalSaveRef.current > 2500){
         setEvents(freshEvents);
+        setTrashEvents(e.data.filter(r=>r.deleted).map(ep));
       }
-      setTrashEvents(e.data.filter(r=>r.deleted).map(ep));
       // 管理者が保存した配置（手動移動）を復元
       // 自分が直近2.5秒以内に保存した場合は、リアルタイムechoによる巻き戻りを防ぐためスキップ
       if(Date.now()-lastLocalSaveRef.current > 2500){
@@ -662,8 +658,10 @@ export default function App() {
     }
     if(an.data){
       const ap=(r)=>({id:r.id,date:r.date,title:r.title,body:r.body});
-      setAnnouncements(an.data.filter(r=>!r.deleted).map(ap));
-      setTrashAnns(an.data.filter(r=>r.deleted).map(ap));
+      if(Date.now()-lastLocalSaveRef.current > 2500){
+        setAnnouncements(an.data.filter(r=>!r.deleted).map(ap));
+        setTrashAnns(an.data.filter(r=>r.deleted).map(ap));
+      }
     }
     if(s.data){
       setTeamName(s.data.team_name||"チームマネージャー");
@@ -843,10 +841,12 @@ export default function App() {
     }).eq("id",id);
   };
   const deleteMember = async id => {
+    lastLocalSaveRef.current = Date.now();
     const m=members.find(x=>x.id===id);
     setMembers(p=>p.filter(x=>x.id!==id));
     if(m) setTrashMembers(p=>[m,...p]);
     await supabase.from("members").update({deleted:true}).eq("id",id);
+    lastLocalSaveRef.current = Date.now();
   };
   const savePosition = async () => {
     if(!currentUser||isManager) return;
@@ -896,6 +896,8 @@ export default function App() {
     // 必須: 種別・タイトル・日付・開始・終了・場所
     if(!newEvent.type||!newEvent.title||!newEvent.date||!newEvent.timeFrom||!newEvent.timeTo||!newEvent.place){
       setShowReqError(true);
+      // モーダル内を最上部へスクロール
+      setTimeout(()=>{document.getElementById("event-modal-top")?.scrollIntoView({behavior:"smooth",block:"start"});},0);
       return;
     }
     setShowReqError(false);
@@ -913,10 +915,12 @@ export default function App() {
     }
   };
   const deleteEvent = async id => {
+    lastLocalSaveRef.current = Date.now();
     const e=events.find(x=>x.id===id);
     setEvents(p=>p.filter(x=>x.id!==id));
     if(e) setTrashEvents(p=>[e,...p]);
     await supabase.from("events").update({deleted:true}).eq("id",id);
+    lastLocalSaveRef.current = Date.now();
   };
   const addAnn = async () => {
     if(!newAnn.title) return;
@@ -927,18 +931,20 @@ export default function App() {
     if(data) setAnnouncements(p=>[{...draft,id:data.id},...p]);
   };
   const deleteAnn = async id => {
+    lastLocalSaveRef.current = Date.now();
     const a=announcements.find(x=>x.id===id);
     setAnnouncements(p=>p.filter(x=>x.id!==id));
     if(a) setTrashAnns(p=>[a,...p]);
     await supabase.from("announcements").update({deleted:true}).eq("id",id);
+    lastLocalSaveRef.current = Date.now();
   };
   // ── 復元・完全削除 ──
-  const restoreEvent = async (e)=>{ setTrashEvents(p=>p.filter(x=>x.id!==e.id)); setEvents(p=>[...p,e]); await supabase.from("events").update({deleted:false}).eq("id",e.id); };
-  const restoreMember = async (m)=>{ setTrashMembers(p=>p.filter(x=>x.id!==m.id)); setMembers(p=>[...p,m]); await supabase.from("members").update({deleted:false}).eq("id",m.id); };
-  const restoreAnn = async (a)=>{ setTrashAnns(p=>p.filter(x=>x.id!==a.id)); setAnnouncements(p=>[a,...p]); await supabase.from("announcements").update({deleted:false}).eq("id",a.id); };
-  const purgeEvent = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashEvents(p=>p.filter(x=>x.id!==id)); await supabase.from("events").delete().eq("id",id); };
-  const purgeMember = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashMembers(p=>p.filter(x=>x.id!==id)); await supabase.from("members").delete().eq("id",id); };
-  const purgeAnn = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; setTrashAnns(p=>p.filter(x=>x.id!==id)); await supabase.from("announcements").delete().eq("id",id); };
+  const restoreEvent = async (e)=>{ lastLocalSaveRef.current=Date.now(); setTrashEvents(p=>p.filter(x=>x.id!==e.id)); setEvents(p=>[...p,e]); await supabase.from("events").update({deleted:false}).eq("id",e.id); lastLocalSaveRef.current=Date.now(); };
+  const restoreMember = async (m)=>{ lastLocalSaveRef.current=Date.now(); setTrashMembers(p=>p.filter(x=>x.id!==m.id)); setMembers(p=>[...p,m]); await supabase.from("members").update({deleted:false}).eq("id",m.id); lastLocalSaveRef.current=Date.now(); };
+  const restoreAnn = async (a)=>{ lastLocalSaveRef.current=Date.now(); setTrashAnns(p=>p.filter(x=>x.id!==a.id)); setAnnouncements(p=>[a,...p]); await supabase.from("announcements").update({deleted:false}).eq("id",a.id); lastLocalSaveRef.current=Date.now(); };
+  const purgeEvent = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; lastLocalSaveRef.current=Date.now(); setTrashEvents(p=>p.filter(x=>x.id!==id)); await supabase.from("events").delete().eq("id",id); lastLocalSaveRef.current=Date.now(); };
+  const purgeMember = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; lastLocalSaveRef.current=Date.now(); setTrashMembers(p=>p.filter(x=>x.id!==id)); await supabase.from("members").delete().eq("id",id); lastLocalSaveRef.current=Date.now(); };
+  const purgeAnn = async (id)=>{ if(!window.confirm("完全に削除します。元に戻せません。よろしいですか？"))return; lastLocalSaveRef.current=Date.now(); setTrashAnns(p=>p.filter(x=>x.id!==id)); await supabase.from("announcements").delete().eq("id",id); lastLocalSaveRef.current=Date.now(); };
   const typeLabel = (t)=> t==="match"?"試合":t==="紅白戦"?"紅白戦":t==="助っ人"?"助っ人募集":"練習";
   // 簡潔なLINE告知文（予定作成・周知用）
   const announceText = (ev) => {
@@ -1317,39 +1323,48 @@ export default function App() {
                 {needAnswer&&<span style={{background:"#f59e0b",color:"#fff",fontSize:10,fontWeight:800,padding:"2px 8px",borderRadius:20}}>✋ 未回答</span>}
               </div>
             )}
-            <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+            <div style={{display:"flex",gap:12,alignItems:"stretch"}}>
               {/* 日付ボックス */}
               {(()=>{
                 const d=new Date(ev.date+"T00:00:00");
                 const wd=["日","月","火","水","木","金","土"][d.getDay()];
                 const isSun=d.getDay()===0, isSat=d.getDay()===6;
+                const accent=ev.type==="match"?"#3b82f6":ev.type==="紅白戦"?"#ec4899":ev.type==="助っ人"?"#f97316":"#22c55e";
                 return (
-                  <div style={{flexShrink:0,width:56,textAlign:"center",background:"#f8fafc",
-                    border:"1.5px solid #e2e8f0",borderRadius:10,padding:"6px 4px"}}>
+                  <div style={{flexShrink:0,width:58,textAlign:"center",background:"#f8fafc",
+                    border:"1.5px solid #e2e8f0",borderRadius:10,padding:"7px 4px",
+                    display:"flex",flexDirection:"column",justifyContent:"center"}}>
                     <div style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{parseInt(ev.date.slice(5,7))}月</div>
-                    <div style={{fontSize:22,fontWeight:800,color:"#0f172a",lineHeight:1.1}}>{parseInt(ev.date.slice(8,10))}</div>
+                    <div style={{fontSize:24,fontWeight:800,color:"#0f172a",lineHeight:1}}>{parseInt(ev.date.slice(8,10))}</div>
                     <div style={{fontSize:11,fontWeight:700,color:isSun?"#dc2626":isSat?"#2563eb":"#64748b"}}>（{wd}）</div>
                   </div>
                 );
               })()}
               {/* タイトル・時間・場所 */}
               <div style={{flex:1,minWidth:0}}>
-                <div style={{marginBottom:3}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:4,flexWrap:"wrap"}}>
                   <span style={S.badge(ev.type)}>{typeLabel(ev.type)}</span>
-                  <span style={{fontSize:15,fontWeight:700}}>{ev.title}</span>
-                  <span style={{fontSize:10,color:"#94a3b8",marginLeft:5}}>{ev.playerCount}人制</span>
+                  <span style={{fontSize:15,fontWeight:800,color:"#0f172a"}}>{ev.title}</span>
                 </div>
-                <div style={{fontSize:13,fontWeight:700,color:"#0f172a"}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#0f172a",marginBottom:3}}>
                   🕐 {ev.timeFrom}{ev.timeTo?`〜${ev.timeTo}`:""}
-                  {ev.meetTime&&<span style={{color:"#d97706",marginLeft:8}}>集合 {ev.meetTime}</span>}
+                  {ev.meetTime&&<span style={{color:"#d97706",marginLeft:8,fontSize:12}}>集合{ev.meetTime}</span>}
+                  <span style={{fontSize:10,color:"#94a3b8",marginLeft:8,fontWeight:600}}>{ev.playerCount}人制</span>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <span style={{fontSize:13,fontWeight:600,color:"#475569",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {ev.place}</span>
                   <a href={ev.mapUrl||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.place)}`}
                     target="_blank" rel="noopener noreferrer"
                     style={{flexShrink:0,fontSize:11,color:"#3b82f6",background:"#eff6ff",borderRadius:4,padding:"1px 6px",textDecoration:"none"}}
                     onClick={e=>e.stopPropagation()}>地図</a>
                 </div>
+              </div>
+              {/* 右側: 出欠サマリー（余白を活用） */}
+              <div style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",justifyContent:"center",
+                borderLeft:"1px solid #f1f5f9",paddingLeft:10,minWidth:48}}>
+                <div style={{fontSize:18,fontWeight:800,color:"#22c55e",lineHeight:1}}>{yes}<span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>人</span></div>
+                <div style={{fontSize:9,color:"#94a3b8",fontWeight:600,marginTop:2}}>出席予定</div>
+                {un>0&&<div style={{fontSize:9,color:"#f59e0b",fontWeight:700,marginTop:3}}>未回答{un}</div>}
               </div>
             </div>
             {ev.deadline&&(
@@ -1374,14 +1389,16 @@ export default function App() {
                 ))}
               </div>
             )}
-            {ev.note&&<div style={{fontSize:11,color:"#94a3b8",marginTop:3,whiteSpace:"pre-wrap"}}>{ev.note}</div>}
-            <div style={{display:"flex",gap:8,marginTop:8,fontSize:12,fontWeight:700,flexWrap:"wrap"}}>
-              <span style={{color:"#22c55e"}}>✅ {yes}</span>
-              <span style={{color:"#ef4444"}}>❌ {no}</span>
-              <span style={{color:"#f59e0b"}}>🤔 {maybe}</span>
-              {ill>0&&<span style={{color:"#8b5cf6"}}>🏥 {ill}</span>}
-              {un>0&&<span style={{color:"#94a3b8"}}>⬜ {un}</span>}
-            </div>
+            {ev.note&&<div style={{fontSize:11,color:"#94a3b8",marginTop:6,whiteSpace:"pre-wrap"}}>{ev.note}</div>}
+            {open&&(
+              <div style={{display:"flex",gap:10,marginTop:10,paddingTop:10,borderTop:"1px solid #f1f5f9",fontSize:13,fontWeight:700,flexWrap:"wrap"}}>
+                <span style={{color:"#22c55e"}}>✅ 出席 {yes}</span>
+                <span style={{color:"#ef4444"}}>❌ 欠席 {no}</span>
+                <span style={{color:"#f59e0b"}}>🤔 検討 {maybe}</span>
+                {ill>0&&<span style={{color:"#8b5cf6"}}>🏥 療養 {ill}</span>}
+                {un>0&&<span style={{color:"#94a3b8"}}>⬜ 未回答 {un}</span>}
+              </div>
+            )}
             {!isManager&&currentMember&&(()=>{
               const att=getAtt(ev.id,currentMember.id);
               const unanswered=att.status==="未回答";
@@ -1710,7 +1727,7 @@ export default function App() {
               <label style={S.lbl}>🗑️ ゴミ箱</label>
               <div style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>削除したイベント・メンバー・お知らせを復元できます</div>
               <button style={{...S.btnGhost,width:"100%"}} onClick={()=>{setShowSettings(false);setShowTrash(true);}}>
-                ゴミ箱をひらく（{trashEvents.length+trashMembers.length+trashAnns.length}件）
+                ゴミ箱をひらく（{trashEvents.length+trashMembers.length}件）
               </button>
             </div>
             <div style={{display:"flex",gap:8}}>
@@ -1760,22 +1777,6 @@ export default function App() {
                   </div>
                   <button style={{...S.btnSm,background:"#22c55e"}} onClick={()=>restoreMember(m)}>戻す</button>
                   <button style={{...S.btnSm,background:"#ef4444"}} onClick={()=>purgeMember(m.id)}>完全削除</button>
-                </div>
-              ))}
-            </div>
-
-            {/* お知らせ */}
-            <div style={{marginBottom:16}}>
-              <div style={{fontSize:13,fontWeight:700,marginBottom:8,color:"#475569"}}>📢 お知らせ（{trashAnns.length}）</div>
-              {trashAnns.length===0&&<div style={{fontSize:12,color:"#cbd5e1"}}>なし</div>}
-              {trashAnns.map(a=>(
-                <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,padding:"8px 10px",background:"#f8fafc",borderRadius:8}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.title}</div>
-                    <div style={{fontSize:11,color:"#94a3b8"}}>{a.date}</div>
-                  </div>
-                  <button style={{...S.btnSm,background:"#22c55e"}} onClick={()=>restoreAnn(a)}>戻す</button>
-                  <button style={{...S.btnSm,background:"#ef4444"}} onClick={()=>purgeAnn(a.id)}>完全削除</button>
                 </div>
               ))}
             </div>
@@ -1846,7 +1847,16 @@ export default function App() {
             <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
               <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={reqLbl}>開始時間 *</label>
-                <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>({...p,timeFrom:v}))} required={!newEvent.timeFrom}/>
+                <TimeSelect value={newEvent.timeFrom} onChange={v=>setNE(p=>{
+                  const next={...p,timeFrom:v};
+                  // 終了時間が未設定なら開始+2時間を自動セット
+                  if(v&&!p.timeTo){
+                    const [hh,mm]=v.split(":").map(Number);
+                    const eh=((hh+2)%24).toString().padStart(2,"0");
+                    next.timeTo=`${eh}:${mm.toString().padStart(2,"0")}`;
+                  }
+                  return next;
+                })} required={!newEvent.timeFrom}/>
               </div>
               <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={reqLbl}>終了時間 *</label>
@@ -2024,8 +2034,11 @@ export default function App() {
                     )}
                   </div>
                 </div>
-                <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>出欠履歴</div>
-                {events.map(ev=>{
+                <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>これからの予定の出欠</div>
+                {(()=>{
+                  const upcoming=[...events].filter(ev=>ev.date>=todayStr).sort((a,b)=>a.date.localeCompare(b.date));
+                  if(upcoming.length===0) return <div style={{fontSize:12,color:"#94a3b8",padding:"8px 0"}}>これからの予定はありません</div>;
+                  return upcoming.map(ev=>{
                   const att=getAtt(ev.id,memberDetail.id);
                   return (
                     <div key={ev.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #f1f5f9"}}>
@@ -2040,7 +2053,8 @@ export default function App() {
                       </div>
                     </div>
                   );
-                })}
+                  });
+                })()}
                 <button style={{...S.btnGhost,width:"100%",marginTop:14}} onClick={()=>setShowMemberDetail(null)}>閉じる</button>
               </>
             )}
