@@ -185,11 +185,12 @@ function splitTeams(players) {
 }
 
 // 時間選択（時・分を別スクロール、タッチで12:00から開始）
-function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=false, defaultHour=12 }) {
-  // 未設定のときは defaultHour:00 を「選択中」として表示（チェックがそこに乗る）。
-  // 実際の保存は、ユーザーがどちらかを操作した時点で行う。
+function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=false, defaultHour=12, allowEmpty=false }) {
+  // allowEmpty=true: 未入力を許容（--:--表示・空のまま保存可）。集合時間など任意項目用。
+  // allowEmpty=false: 未設定でも defaultHour:00 を「選択中」として表示（チェックがそこに乗る）。
   const dh = defaultHour.toString().padStart(2,"0");
-  const [h,m] = value ? value.split(":") : [dh,"00"];
+  const empty = !value;
+  const [h,m] = value ? value.split(":") : (allowEmpty ? ["",""] : [dh,"00"]);
   const bg = required ? "#fef2f2" : accent ? "#fffbeb" : "#fff";
   const bc = required ? "#fca5a5" : accent ? "#f59e0b" : "#e2e8f0";
   const selStyle = {
@@ -202,12 +203,14 @@ function TimeSelect({ value, onChange, minuteStep=10, accent=false, required=fal
   return (
     <div style={{display:"flex",gap:4,alignItems:"center"}}>
       <select style={selStyle} value={h}
-        onChange={e=>onChange(`${e.target.value}:${m}`)}>
+        onChange={e=>onChange(e.target.value===""?"":`${e.target.value}:${m||"00"}`)}>
+        {allowEmpty&&<option value="">--</option>}
         {hours.map(hh=><option key={hh} value={hh}>{hh}</option>)}
       </select>
       <span style={{fontWeight:700,color:"#64748b"}}>:</span>
       <select style={selStyle} value={m}
-        onChange={e=>onChange(`${h}:${e.target.value}`)}>
+        onChange={e=>onChange(`${h||dh}:${e.target.value||"00"}`)}>
+        {allowEmpty&&<option value="">--</option>}
         {minutes.map(mm=><option key={mm} value={mm}>{mm}</option>)}
       </select>
     </div>
@@ -1841,7 +1844,7 @@ export default function App() {
               </div>
               <div style={{flex:"1 1 0",minWidth:0}}>
                 <label style={{...S.lbl,color:"#d97706"}}>🕐 集合時間</label>
-                <TimeSelect value={newEvent.meetTime} defaultHour={12} onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
+                <TimeSelect value={newEvent.meetTime} allowEmpty onChange={v=>setNE(p=>({...p,meetTime:v}))}/>
               </div>
             </div>
             <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
