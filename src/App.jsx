@@ -1514,7 +1514,7 @@ export default function App() {
         <div style={S.card}>
           <label style={S.lbl}>イベントを選択</label>
           <select style={S.sel} value={formationEvId} onChange={e=>{setFormationEvId(parseInt(e.target.value));if(!isManager)setFormationSel({});}}>
-            {events.map(e=><option key={e.id} value={e.id}>{e.date.slice(5).replace("-","/")} {e.title}（{e.playerCount}人制）</option>)}
+            {[...events].filter(e=>e.date>=todayStr).sort((a,b)=>a.date.localeCompare(b.date)).map(e=><option key={e.id} value={e.id}>{e.date.slice(5).replace("-","/")} {e.title}（{e.playerCount}人制）</option>)}
           </select>
         </div>
         <div style={S.card}>
