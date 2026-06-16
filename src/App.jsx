@@ -14,24 +14,30 @@ const ATT_COLOR = { "出席":"#22c55e","欠席":"#ef4444","検討中":"#f59e0b",
 const ATT_BG    = { "出席":"#f0fdf4","欠席":"#fef2f2","検討中":"#fffbeb","療養中":"#f5f3ff","未回答":"#f8fafc" };
 const ATT_ICON  = { "出席":"✅","欠席":"❌","検討中":"🤔","療養中":"🏥","未回答":"⬜" };
 
+// フォーメーション定義
+// mfSplit: 中盤の枚数を「後ろの列→前の列」に分割（4ライン以上を表現）。例 4-2-3-1 → mf:5 を [2,3]
+// fwSplit: 前線の分割（必要時）
 const FORMATIONS = {
-  // 11人制
-  "4-3-3":  { label:"4-3-3",   gk:1,df:4,mf:3,fw:3,min:11 },
-  "4-4-2":  { label:"4-4-2",   gk:1,df:4,mf:4,fw:2,min:11 },
-  "4-5-1":  { label:"4-5-1",   gk:1,df:4,mf:5,fw:1,min:11 },
-  "4-2-3-1":{ label:"4-2-3-1", gk:1,df:4,mf:5,fw:1,min:11 },
-  "3-5-2":  { label:"3-5-2",   gk:1,df:3,mf:5,fw:2,min:11 },
-  "3-4-3":  { label:"3-4-3",   gk:1,df:3,mf:4,fw:3,min:11 },
-  "5-3-2":  { label:"5-3-2",   gk:1,df:5,mf:3,fw:2,min:11 },
-  // 10人制
+  // ===== 11人制（10種類）=====
+  "4-4-2":   { label:"4-4-2",   gk:1,df:4,mf:4,fw:2,min:11 },                 // 3ライン
+  "4-3-3":   { label:"4-3-3",   gk:1,df:4,mf:3,fw:3,min:11 },                 // 3ライン
+  "4-2-3-1": { label:"4-2-3-1", gk:1,df:4,mf:5,fw:1,min:11, mfSplit:[2,3] },  // 4ライン（ボランチ2＋2列目3）
+  "4-1-4-1": { label:"4-1-4-1", gk:1,df:4,mf:5,fw:1,min:11, mfSplit:[1,4] },  // 4ライン（アンカー1＋MF4）
+  "4-3-1-2": { label:"4-3-1-2", gk:1,df:4,mf:4,fw:2,min:11, mfSplit:[3,1] },  // 4ライン（MF3＋トップ下1）
+  "4-1-2-3": { label:"4-1-2-3", gk:1,df:4,mf:3,fw:3,min:11, mfSplit:[1,2] },  // 4ライン（アンカー1＋IH2）
+  "3-4-3":   { label:"3-4-3",   gk:1,df:3,mf:4,fw:3,min:11 },                 // 3ライン
+  "3-5-2":   { label:"3-5-2",   gk:1,df:3,mf:5,fw:2,min:11, mfSplit:[2,3] },  // ボランチ2＋3
+  "3-4-2-1": { label:"3-4-2-1", gk:1,df:3,mf:4,fw:3,min:11, fwSplit:[2,1] },  // 4ライン（シャドー2＋1トップ）
+  "5-3-2":   { label:"5-3-2",   gk:1,df:5,mf:3,fw:2,min:11 },                 // 3ライン
+  // ===== 10人制 =====
   "4-3-2":  { label:"4-3-2",   gk:1,df:4,mf:3,fw:2,min:10 },
   "3-4-2":  { label:"3-4-2",   gk:1,df:3,mf:4,fw:2,min:10 },
   "3-3-3":  { label:"3-3-3",   gk:1,df:3,mf:3,fw:3,min:10 },
-  // 9人制
+  // ===== 9人制 =====
   "3-3-2":  { label:"3-3-2",   gk:1,df:3,mf:3,fw:2,min:9 },
   "3-2-3":  { label:"3-2-3",   gk:1,df:3,mf:2,fw:3,min:9 },
   "2-4-2":  { label:"2-4-2",   gk:1,df:2,mf:4,fw:2,min:9 },
-  // 8人制
+  // ===== 8人制 =====
   "3-3-1":  { label:"3-3-1",   gk:1,df:3,mf:3,fw:1,min:8 },
   "2-3-2":  { label:"2-3-2",   gk:1,df:2,mf:3,fw:2,min:8 },
   "3-2-2":  { label:"3-2-2",   gk:1,df:3,mf:2,fw:2,min:8 },
@@ -106,11 +112,43 @@ function slotSides(n) {
   if(n===4) return ["左","セ","セ","右"];
   return ["左",...Array(n-2).fill("セ"),"右"];
 }
-function roleLabel(pos, side) {
+function roleLabel(pos, side, band) {
   if(pos==="GK") return "GK";
   if(pos==="DF") return side==="左"?"左SB":side==="右"?"右SB":"CB";
-  if(pos==="MF") return side==="左"?"左SMF":side==="右"?"右SMF":"CMF";
-  return side==="左"?"左FW":side==="右"?"右FW":"CF";
+  if(pos==="MF"){
+    if(band==="DM") return side==="左"?"左ボランチ":side==="右"?"右ボランチ":"ボランチ";
+    if(band==="AM") return side==="左"?"左SH":side==="右"?"右SH":"トップ下";
+    return side==="左"?"左SMF":side==="右"?"右SMF":"CMF";
+  }
+  if(pos==="FW"){
+    if(band==="SS") return side==="左"?"左シャドー":side==="右"?"右シャドー":"シャドー";
+    return side==="左"?"左WG":side==="右"?"右FW":"CF";
+  }
+  return "CF";
+}
+// ポジション群の枠配列を、フォーメーションの分割定義に従って視覚的サブ行へ分割
+// 返り値: [{slots:[{slot,idx}], band}] （後列→前列）
+function bandRows(pos, rowSlots, f) {
+  const split = pos==="MF" ? (f&&f.mfSplit) : pos==="FW" ? (f&&f.fwSplit) : null;
+  const indexed = rowSlots.map((slot,idx)=>({slot,idx}));
+  if(!split || split.reduce((a,b)=>a+b,0)!==rowSlots.length){
+    // 分割なし: 1行（中盤はCMF、前線はFW）
+    return [{ items:indexed, band: pos==="MF"?"CM":"FW" }];
+  }
+  // 分割あり: 後列→前列。MFは [DM, ...CM/AM]、FWは [SS, FW] を想定
+  const rows=[]; let cur=0;
+  split.forEach((n,li)=>{
+    const items=indexed.slice(cur,cur+n); cur+=n;
+    let band;
+    if(pos==="MF"){
+      if(split.length===2) band = li===0?"DM":"AM";
+      else band = li===0?"DM":(li===split.length-1?"AM":"CM");
+    } else if(pos==="FW"){
+      band = li===split.length-1?"FW":"SS";
+    } else band="";
+    rows.push({items,band});
+  });
+  return rows;
 }
 function sideMatches(playerSide, slotSide) {
   const s = playerSide||"";
@@ -319,69 +357,75 @@ function FieldDisplay({ slots: baseSlots, fKey, accentColor, rotPrefix="", slotR
     }
   };
 
+  const f = FORMATIONS[fKey];
+  const renderCell = (slot, si, pos, sides, band) => {
+    const slotKey=`${pos}__${si}`;
+    const rotKey=`${rotPrefix}${pos}-${si}`;
+    const label=roleLabel(pos,sides[si],band);
+    if(slot.length===0){
+      return (
+        <div key={slotKey} data-slotkey={slotKey}
+          onPointerUp={handleUp}
+          style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+            borderRadius:7,padding:"5px 8px",minWidth:44,minHeight:48,
+            border:hoverKey===slotKey?"2px solid #fbbf24":"1.5px dashed rgba(255,255,255,0.3)",
+            userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
+            transition:"background 0.1s",
+            background:hoverKey===slotKey?"rgba(251,191,36,0.35)":dragPid!==null?"rgba(255,255,255,0.12)":"transparent" }}>
+          <div style={{ fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700 }}>{label}</div>
+        </div>
+      );
+    }
+    const rot=slotRot[rotKey]||0;
+    const cur=slot[rot%slot.length];
+    const hasMore=slot.length>1;
+    const isDragging=dragPid===cur.id;
+    return (
+      <div key={slotKey}
+        data-slotkey={slotKey}
+        onClick={()=>{ if(justDraggedRef.current) return; hasMore&&onRotate&&onRotate(rotKey); }}
+        onPointerDown={(e)=>startPress(e,cur.id)}
+        onPointerUp={handleUp}
+        onPointerCancel={cancelPress}
+        style={{ display:"flex",flexDirection:"column",alignItems:"center",
+          background:hoverKey===slotKey&&dragPid!==null&&!isDragging?"rgba(251,191,36,0.35)":"rgba(255,255,255,0.13)",
+          borderRadius:7,padding:"5px 8px",minWidth:44,
+          position:"relative",cursor:hasMore?"pointer":canDrag?"grab":"default",
+          border:hoverKey===slotKey&&dragPid!==null&&!isDragging?"2px solid #fbbf24":hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
+          opacity:isDragging?0.3:1,
+          transition:"opacity 0.15s, background 0.1s",
+          touchAction:canDrag?"none":"auto",
+          userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
+          zIndex:1 }}>
+        {hasMore&&(
+          <div style={{ position:"absolute",top:-6,right:-6,background:"#f59e0b",color:"#fff",
+            fontSize:8,fontWeight:800,borderRadius:10,padding:"1px 5px" }}>+{slot.length-1}</div>
+        )}
+        <div style={{ width:28,height:28,borderRadius:"50%",
+          background:accentColor||POS_COLOR[cur.pos1]||"#64748b",
+          display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:12 }}>
+          {cur.number}
+        </div>
+        <div style={{ fontSize:9,color:"#e2e8f0",marginTop:2,textAlign:"center" }}>{cur.name.split(" ")[0]}</div>
+        <div style={{ fontSize:7,color:"rgba(255,255,255,0.5)" }}>{label}</div>
+      </div>
+    );
+  };
   const renderRow = (pos) => {
     const row = slots[pos]||[];
     if (!row.length) return null;
-    const sides = slotSides(row.length);
+    // フォーメーション定義に従って視覚的サブ行へ分割（後列→前列）→表示は上が攻撃側なので逆順
+    const subRows = [...bandRows(pos, row, f)].reverse();
     return (
       <div key={pos} style={{ marginBottom:6 }}>
-        <div style={{ fontSize:9,color:"rgba(255,255,255,0.45)",textAlign:"center",marginBottom:3 }}>{pos}</div>
-        <div style={{ display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap" }}>
-          {row.map((slot,si)=>{
-            const slotKey=`${pos}__${si}`;
-            const rotKey=`${rotPrefix}${pos}-${si}`;
-            const label=roleLabel(pos,sides[si]);
-            if(slot.length===0){
-              // 空枠
-              return (
-                <div key={slotKey} data-slotkey={slotKey}
-                  onPointerUp={handleUp}
-                  style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                    borderRadius:7,padding:"5px 8px",minWidth:44,minHeight:48,
-                    border:hoverKey===slotKey?"2px solid #fbbf24":"1.5px dashed rgba(255,255,255,0.3)",
-                    userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
-                    transition:"background 0.1s",
-                    background:hoverKey===slotKey?"rgba(251,191,36,0.35)":dragPid!==null?"rgba(255,255,255,0.12)":"transparent" }}>
-                  <div style={{ fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700 }}>{label}</div>
-                </div>
-              );
-            }
-            const rot=slotRot[rotKey]||0;
-            const cur=slot[rot%slot.length];
-            const hasMore=slot.length>1;
-            const isDragging=dragPid===cur.id;
-            return (
-              <div key={slotKey}
-                data-slotkey={slotKey}
-                onClick={()=>{ if(justDraggedRef.current) return; hasMore&&onRotate&&onRotate(rotKey); }}
-                onPointerDown={(e)=>startPress(e,cur.id)}
-                onPointerUp={handleUp}
-                onPointerCancel={cancelPress}
-                style={{ display:"flex",flexDirection:"column",alignItems:"center",
-                  background:hoverKey===slotKey&&dragPid!==null&&!isDragging?"rgba(251,191,36,0.35)":"rgba(255,255,255,0.13)",
-                  borderRadius:7,padding:"5px 8px",minWidth:44,
-                  position:"relative",cursor:hasMore?"pointer":canDrag?"grab":"default",
-                  border:hoverKey===slotKey&&dragPid!==null&&!isDragging?"2px solid #fbbf24":hasMore?"1.5px dashed rgba(255,255,255,0.4)":"1.5px solid transparent",
-                  opacity:isDragging?0.3:1,
-                  transition:"opacity 0.15s, background 0.1s",
-                  touchAction:canDrag?"none":"auto",
-                  userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none",
-                  zIndex:1 }}>
-                {hasMore&&(
-                  <div style={{ position:"absolute",top:-6,right:-6,background:"#f59e0b",color:"#fff",
-                    fontSize:8,fontWeight:800,borderRadius:10,padding:"1px 5px" }}>+{slot.length-1}</div>
-                )}
-                <div style={{ width:28,height:28,borderRadius:"50%",
-                  background:accentColor||POS_COLOR[cur.pos1]||"#64748b",
-                  display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:12 }}>
-                  {cur.number}
-                </div>
-                <div style={{ fontSize:9,color:"#e2e8f0",marginTop:2,textAlign:"center" }}>{cur.name.split(" ")[0]}</div>
-                <div style={{ fontSize:7,color:"rgba(255,255,255,0.5)" }}>{label}</div>
-              </div>
-            );
-          })}
-        </div>
+        {subRows.map((sr,ri)=>{
+          const sides=slotSides(sr.items.length);
+          return (
+            <div key={ri} style={{ display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap",marginBottom:ri<subRows.length-1?6:0 }}>
+              {sr.items.map((it,localIdx)=>renderCell(it.slot, it.idx, pos, sides, sr.band))}
+            </div>
+          );
+        })}
       </div>
     );
   };
