@@ -606,6 +606,13 @@ export default function App() {
   // ── Supabaseからデータ読み込み ──
   const draggingRef = useRef(false);
   const lastLocalSaveRef = useRef(0); // 自分が保存した直後はリアルタイム反映で上書きしない
+  const lastLoadTimeRef = useRef(Date.now());
+  const lastLoadDateRef = useRef("");
+  const jstDateStr = (d=new Date()) => {
+    // 日本時間(UTC+9)での YYYY-MM-DD（端末のタイムゾーンに依存しない）
+    const jst = new Date(d.getTime() + 9*60*60000);
+    return jst.toISOString().slice(0,10);
+  };
   const loadAll = async () => {
     const [m,e,a,an,s,ph] = await Promise.all([
       supabase.from("members").select("*").order("number"),
@@ -672,6 +679,8 @@ export default function App() {
       setLogoUrl(s.data.logo_url||null);
       setAdmins((s.data.admins||"").split(",").filter(Boolean));
     }
+    lastLoadTimeRef.current = Date.now();
+    lastLoadDateRef.current = jstDateStr();
     setLoading(false);
   };
 
@@ -684,8 +693,17 @@ export default function App() {
       setShowLogin(false);
     }
     setSelectedEventId(null);
-    const onFocus=()=>{ loadAll(); };
+    const onFocus=()=>{
+      // 日付をまたいだ、または前回ロードから5分以上経過していたら、
+      // 一旦スプラッシュを出してから読み込み直す（経過予定のチラ見え防止）
+      const now=Date.now();
+      const dateChanged = lastLoadDateRef.current && lastLoadDateRef.current!==jstDateStr();
+      const longGap = now-lastLoadTimeRef.current > 5*60*1000;
+      if(dateChanged || longGap){ setLoading(true); }
+      loadAll();
+    };
     window.addEventListener("focus",onFocus);
+    document.addEventListener("visibilitychange",()=>{ if(!document.hidden) onFocus(); });
     // リアルタイム購読: 誰かがDBを変更したら全員が自動で最新に
     const channel = supabase
       .channel("teamapp-changes")
@@ -780,11 +798,6 @@ export default function App() {
     {key:"formation",label:"⚽ フォーメーション"},
     {key:"members",label:"👥 メンバー"},
   ];
-  const jstDateStr = (d=new Date()) => {
-    // 日本時間(UTC+9)での YYYY-MM-DD（端末のタイムゾーンに依存しない）
-    const jst = new Date(d.getTime() + 9*60*60000);
-    return jst.toISOString().slice(0,10);
-  };
   const todayStr = jstDateStr();
   const weekEndStr = (()=>{ const now=new Date(); const jst=new Date(now.getTime()+9*60*60000); const diff=7-jst.getUTCDay(); jst.setUTCDate(jst.getUTCDate()+diff); return jst.toISOString().slice(0,10); })();
   const isToday = (ev)=>ev.date===todayStr;
@@ -1019,6 +1032,12 @@ export default function App() {
   });
 
   // ── ログイン ─────────────────────────────────────────
+  // 初回データ読込中はスプラッシュ表示（デフォルト名・⚽のチラ見え防止）
+  if (loading) return (
+    <div style={{...S.app,display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#1a1a1c"}}>
+      <div style={{width:48,height:48,border:"4px solid rgba(255,255,255,0.2)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+    </div>
+  );
   if (showLogin) return (
     <div style={{...S.app,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,minHeight:"100vh"}}>
       {logoUrl?<img src={logoUrl} alt="logo" style={{width:64,height:64,borderRadius:12,objectFit:"cover",marginBottom:8}}/>
@@ -1498,8 +1517,9 @@ export default function App() {
   );
 
   const renderFormation = () => {
-    const ev=events.find(e=>e.id===formationEvId)||events[0];
-    if(!ev) return null;
+    const upcomingEvents=[...events].filter(e=>e.date>=todayStr).sort((a,b)=>a.date.localeCompare(b.date));
+    const ev=upcomingEvents.find(e=>e.id===formationEvId)||upcomingEvents[0];
+    if(!ev) return <div style={S.card}><div style={{textAlign:"center",color:"#94a3b8",padding:20,fontSize:13}}>これからの予定がありません</div></div>;
     const attending=members.filter(m=>getAtt(ev.id,m.id).status==="出席");
     const is紅白=ev.type==="紅白戦";
     const targetCount = ev.playerCount<=8?8:ev.playerCount;
